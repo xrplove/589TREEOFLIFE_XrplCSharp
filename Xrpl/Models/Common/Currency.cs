@@ -368,6 +368,41 @@ public class Currency
 public static class CurrencyExtensions
 {
     /// <summary>
+    /// The amount as a <see cref="decimal"/> (drops for XRP, as <see cref="Currency.ValueAsNumber"/> reads it),
+    /// saturating at <see cref="decimal.MinValue"/> or <see cref="decimal.MaxValue"/> for an amount the ledger
+    /// allows but <see cref="decimal"/> cannot hold.
+    /// </summary>
+    /// <remarks>
+    /// For a value that is compared or displayed, where "at least this large" is the whole question: a
+    /// trust line limit against a balance, the sign of an issuer's supply. It is not for an amount that goes
+    /// back to the ledger; build that from <see cref="Currency.Value"/>, which is the text as the node sent
+    /// it. Everything else is read as <see cref="Currency.ValueAsNumber"/> reads it, including drops for XRP
+    /// and zero for an amount below 1e-28.
+    /// </remarks>
+    /// <param name="amount">The amount, or null.</param>
+    /// <returns>The value; zero for a null amount or a blank <see cref="Currency.Value"/>.</returns>
+    /// <exception cref="FormatException"><see cref="Currency.Value"/> is not a number at all.</exception>
+    public static decimal ToDecimalClamped(this Currency amount)
+    {
+        if (amount is null)
+        {
+            return 0m;
+        }
+
+        try
+        {
+            return amount.ValueAsNumber;
+        }
+        catch (AmountOutOfRangeException)
+        {
+            // Too large rather than malformed, so the sign picks the end of the range.
+            return amount.Value.AsSpan().TrimStart().StartsWith("-", StringComparison.Ordinal)
+                ? decimal.MinValue
+                : decimal.MaxValue;
+        }
+    }
+
+    /// <summary>
     /// Returns the human-readable value of this currency amount.
     /// For XRP, returns the value in XRP (drops / 1,000,000).
     /// For tokens, returns the raw numeric value.
