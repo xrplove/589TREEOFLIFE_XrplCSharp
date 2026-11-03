@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 using System;
 using System.Globalization;
+using Xrpl.Amounts;
 using Xrpl.Client.Exceptions;
 using System.Linq;
 using System.Text;
@@ -189,37 +190,13 @@ public class Currency
     /// </summary>
     /// <remarks>
     /// Reached only when rounding would carry the value past <see cref="decimal.MaxValue"/>.
-    /// Truncating cannot: dropping digits only ever moves a number toward zero.
+    /// <see cref="LedgerAmountGrid.RoundDown"/> first rounds the scaled value to six places, which
+    /// can in general land above the input, so it is safe here only because of where this is called:
+    /// the fractional part of <c>decimal.MaxValue / 1e13</c> is .759..., outside the window that
+    /// rounding can carry across, so the result stays at or below the input.
     /// </remarks>
-    private static decimal TruncateToLedgerPrecision(decimal value)
-    {
-        if (value == 0m)
-        {
-            return 0m;
-        }
-
-        int magnitude = (int)Math.Floor(Math.Log10((double)Math.Abs(value)));
-        int digitsToDrop = magnitude - (LedgerSignificantDigits - 1);
-
-        if (digitsToDrop <= 0)
-        {
-            return value;
-        }
-
-        decimal scale = 1m;
-        for (int i = 0; i < digitsToDrop; i++)
-        {
-            scale *= 10m;
-        }
-
-        return Math.Truncate(value / scale) * scale;
-    }
-
-    /// <summary>
-    /// How many significant digits an issued-currency amount carries on the ledger.
-    /// </summary>
-    /// <remarks>rippled's <c>STAmount</c> normalises the mantissa into <c>[1e15, 1e16)</c>.</remarks>
-    private const int LedgerSignificantDigits = 16;
+    private static decimal TruncateToLedgerPrecision(decimal value) =>
+        LedgerAmountGrid.RoundDown(value, isXrp: false);
 
     /// <summary>
     /// XRP token amount (non drops value)
@@ -419,12 +396,21 @@ public static class CurrencyExtensions
 
     /// <summary>
     /// Determines whether this currency represents XRP.
-    /// A currency is XRP if its code (case-insensitive) is "XRP" and it has no issuer.
+    /// A currency is XRP if its code is exactly "XRP" (case-sensitive) and it has no issuer.
     /// </summary>
+    /// <remarks>
+    /// The comparison is ordinal because the exact code "XRP" is reserved for native XRP, so an issued
+    /// currency cannot use it (the JSON code "XRP" is parsed as native, and the hex form of ASCII "XRP"
+    /// is refused with <c>temBAD_CURRENCY</c>): "xrp" and "Xrp" are legal issued currency codes, distinct
+    /// from native XRP.
+    /// An issued currency always has an issuer, so a legal IOU was never reported as XRP; what changed in
+    /// 11.24.0.0 is that a currency with the code "xrp" or "Xrp" and no issuer (malformed input) used to be
+    /// reported as XRP because the code was upper-cased first, and now is not.
+    /// </remarks>
     /// <param name="currency">The currency to check.</param>
     /// <returns><c>true</c> if this currency is XRP; otherwise, <c>false</c>.</returns>
     public static bool IsXrp(this Currency currency)
-        => currency is not null && currency.CurrencyCode?.ToUpper() is "XRP" && currency.Issuer == null;
+        => currency is not null && AssetIdentity.IsXrp(currency.CurrencyCode) && currency.Issuer == null;
 
     /// <summary>
     /// The asset of this amount, without its value: currency code and issuer, or the MPT issuance ID.

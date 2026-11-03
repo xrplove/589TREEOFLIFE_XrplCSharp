@@ -2,6 +2,7 @@ using System;
 
 using Xrpl.BinaryCodec.Numbers;
 using Xrpl.Models.Ledger;
+using Xrpl.Utils;
 
 using static Xrpl.Models.Common.Common;
 
@@ -212,7 +213,7 @@ namespace Xrpl.Sugar
     /// </remarks>
     public static class LoanManagement
     {
-        private static readonly DateTime RippleEpoch = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        private static readonly DateTime RippleEpoch = DateTimeUtils.RippleEpoch.UtcDateTime;
 
         /// <summary>
         /// The loan's exposure for the vault (<c>loanVaultExposure</c>): <c>PrincipalOutstanding</c>

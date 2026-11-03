@@ -89,6 +89,22 @@ public class TestURippleDateTimeConverter
     }
 
     [TestMethod]
+    public void Serialize_DateTimeBeforeTheEpoch_ReturnsZero()
+    {
+        RippleModel model = new RippleModel { Timestamp = new DateTime(1999, 12, 31, 23, 59, 59, DateTimeKind.Utc) };
+
+        Assert.AreEqual("{\"Timestamp\":0}", JsonSerializer.Serialize(model, XrplJsonOptions.Default));
+    }
+
+    [TestMethod]
+    public void Serialize_DateTimeMaxValue_SaturatesToUInt32Max()
+    {
+        RippleModel model = new RippleModel { Timestamp = DateTime.MaxValue };
+
+        Assert.AreEqual("{\"Timestamp\":4294967295}", JsonSerializer.Serialize(model, XrplJsonOptions.Default));
+    }
+
+    [TestMethod]
     public void Serialize_Null_ReturnsJsonNull()
     {
         JsonSerializerOptions options = new JsonSerializerOptions(XrplJsonOptions.Default)

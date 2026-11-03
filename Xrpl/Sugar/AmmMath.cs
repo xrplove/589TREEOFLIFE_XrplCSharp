@@ -136,6 +136,9 @@ namespace Xrpl.Sugar
         /// <param name="lpTokenBalance">The pool's LP token balance, before the deposit.</param>
         /// <param name="tradingFee">The fee this depositor trades at - see <see cref="DiscountedTradingFee"/>.</param>
         /// <exception cref="ArgumentOutOfRangeException">A balance is not positive, the deposit is negative, or the fee exceeds <see cref="TradingFeeThreshold"/>.</exception>
+        /// <exception cref="OverflowException">An extreme input does not fit a <see cref="decimal"/>: the
+        /// ratio <c>deposit / poolBalance</c> (or the root of it) exceeds the range, or the credited
+        /// tokens do even after the product is reordered to divide first.</exception>
         public static decimal LPTokensForSingleAssetDeposit(
             decimal poolBalance,
             decimal deposit,
@@ -158,7 +161,20 @@ namespace Xrpl.Sugar
             decimal r = deposit / poolBalance;
             decimal c = Sqrt(f2 * f2 + r / f1) - f2;
 
-            return lpTokenBalance * (r - c) / (1m + c);
+            // rippled evaluates this in Number, which does not overflow; decimal does when a huge
+            // deposit meets a large LP balance, so the product is only reordered in that case.
+            // Dividing first by default would cost digits: a decimal keeps 28 places after the
+            // point, so a small quotient holds far fewer significant digits than the product.
+            decimal numerator = r - c;
+            decimal denominator = 1m + c;
+            try
+            {
+                return lpTokenBalance * numerator / denominator;
+            }
+            catch (OverflowException)
+            {
+                return lpTokenBalance * (numerator / denominator);
+            }
         }
 
         /// <summary>
@@ -507,10 +523,12 @@ namespace Xrpl.Sugar
         /// discard the precision the rest of this class keeps. The iteration is seeded from the
         /// double result, which is already close, so it converges in a handful of steps; it stops
         /// when the estimate settles or begins alternating between two neighbouring values, which
-        /// is how a decimal iteration ends when it can get no closer.
+        /// is how a decimal iteration ends when it can get no closer. Public because consumers that
+        /// compute on top of the pool formulas need the same root, at the same precision. If the
+        /// iteration has not settled after 100 steps it returns the last estimate and does not throw.
         /// </remarks>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is negative.</exception>
-        internal static decimal Sqrt(decimal value)
+        public static decimal Sqrt(decimal value)
         {
             if (value < 0m)
             {

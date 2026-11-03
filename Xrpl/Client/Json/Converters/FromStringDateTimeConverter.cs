@@ -2,12 +2,13 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Xrpl.Utils;
 
 namespace Xrpl.Client.Json.Converters;
 
 public class FromStringDateTimeConverter : JsonConverter<DateTime?>
 {
-    private static DateTime RippleStartTime = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime RippleStartTime = DateTimeUtils.RippleEpoch.UtcDateTime;
 
     public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 using Xrpl.BinaryCodec.Binary;
 using Xrpl.BinaryCodec.Types;
@@ -96,8 +97,7 @@ namespace Xrpl.Models.Transactions
                 return;
             }
 
-            int length = SerializedLength(array);
-            if (length < 0)
+            if (!TryMeasure(array, out int length))
             {
                 return;
             }
@@ -112,31 +112,141 @@ namespace Xrpl.Models.Transactions
         }
 
         /// <summary>
-        /// Measures the <c>Memos</c> array the way the node measures it.
+        /// Measures a <c>Memos</c> array the way the node measures it, so a caller can show how much
+        /// room is left before the limit instead of finding out when signing is refused.
         /// </summary>
+        /// <param name="memos">
+        /// The value of the transaction's <c>Memos</c> field: a collection of <c>{ "Memo": { ... } }</c>
+        /// elements (or the equivalent JSON array), the shape <see cref="Validate"/> accepts. A
+        /// transaction's typed <c>Memos</c> (<see cref="MemoWrapper"/> elements) go through the
+        /// <see cref="TryGetSerializedLength(IEnumerable{MemoWrapper}, out int)"/> overload, which
+        /// the compiler checks; this one takes anything and answers <c>false</c> for what is not an
+        /// array of memos, such as a string or a single memo.
+        /// </param>
+        /// <param name="length">
+        /// The length in bytes of the array as it would be serialized in the transaction, to compare
+        /// with <see cref="MaxSerializedLength"/>; <c>0</c> when the method returns <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// <c>false</c> when there is nothing to measure: <paramref name="memos"/> is <c>null</c>, not
+        /// an array, empty, holds an element that is not a <c>Memo</c> object, or holds content the
+        /// binary codec cannot serialize (a value that is not hex, say), or is an object
+        /// <c>System.Text.Json</c> cannot convert to JSON (a <c>double.NaN</c> value, a getter that
+        /// throws). The method throws nothing but critical runtime failures such as
+        /// <see cref="OutOfMemoryException"/>.
+        /// </returns>
         /// <remarks>
-        /// rippled serializes the array with <c>STArray::add</c>, which writes each element as its
-        /// object start marker, the fields, and the object end marker - the array's own markers are
-        /// not part of the length it then compares. <see cref="StArray.ToBytes"/> writes exactly
-        /// that, which is why the measurement is taken here rather than reimplemented.
+        /// <para>
+        /// This is the figure <see cref="Validate"/> compares with the limit, so a form and the
+        /// signing check cannot disagree. rippled serializes the array with <c>STArray::add</c>:
+        /// each element is its object start marker, the fields, and the object end marker; the
+        /// array's own markers are not part of the length it compares.
+        /// </para>
+        /// <para>
+        /// Each field costs one byte of field id plus its length prefix (one byte up to 192 bytes,
+        /// two up to 12480) plus the value. A memo costs two more for its start and end markers. A
+        /// single memo of <c>n</c> bytes of <c>MemoData</c> with a ten-byte <c>MemoFormat</c> such as
+        /// <c>text/plain</c> and no <c>MemoType</c> therefore measures <c>n + 17</c> once <c>n</c> is
+        /// 193 or more, and a memo of data alone measures <c>n + 5</c> (<c>n + 4</c> below 193, where
+        /// the length prefix is one byte).
+        /// </para>
         /// </remarks>
-        private static int SerializedLength(JsonArray array)
+        public static bool TryGetSerializedLength(object memos, out int length)
         {
+            length = 0;
+            if (memos is null)
+            {
+                return false;
+            }
+
+            JsonNode node;
+            try
+            {
+                node = memos as JsonNode ?? JsonSerializer.SerializeToNode(memos, XrplJsonOptions.Default);
+            }
+            catch (Exception e) when (!IsCritical(e))
+            {
+                // A value System.Text.Json cannot turn into a node is not a Memos array. Like the
+                // codec, the serializer fails on the caller's object in unrelated types (a NaN
+                // double: ArgumentException; a throwing getter or duplicate names:
+                // InvalidOperationException; a custom converter: whatever it throws), so the
+                // same guard applies and a Try* method throws only critical failures.
+                return false;
+            }
+
+            return node is JsonArray array && TryMeasure(array, out length);
+        }
+
+        /// <summary>
+        /// Measures the SDK's typed <c>Memos</c> (<c>TransactionCommon.Memos</c>,
+        /// <see cref="MemoWrapper"/> elements) with the same rules as
+        /// <see cref="TryGetSerializedLength(object, out int)"/>.
+        /// </summary>
+        /// <param name="memos">The memos of a transaction, or <c>null</c>.</param>
+        /// <param name="length">
+        /// The serialized length in bytes, to compare with <see cref="MaxSerializedLength"/>; <c>0</c>
+        /// when the method returns <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// <c>false</c> for <c>null</c>, an empty sequence, a <see cref="MemoWrapper"/> without a
+        /// <see cref="MemoWrapper.Memo"/>, or a memo whose members are not hex. A member left
+        /// <c>null</c> is not written, so a memo of <c>MemoData</c> alone is measured without
+        /// <c>MemoType</c> and <c>MemoFormat</c>.
+        /// </returns>
+        public static bool TryGetSerializedLength(IEnumerable<MemoWrapper> memos, out int length)
+        {
+            return TryGetSerializedLength((object)memos, out length);
+        }
+
+        private static bool TryMeasure(JsonArray array, out int length)
+        {
+            length = 0;
+            if (array.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (JsonNode element in array)
+            {
+                if (TryUnwrapMemo(element) is null)
+                {
+                    return false;
+                }
+            }
+
             try
             {
                 StArray serialized = StArray.FromJson(array);
                 BytesList sink = new BytesList();
                 serialized.ToBytes(sink);
-                return sink.BytesLength();
+                length = sink.BytesLength();
+                return true;
             }
-            catch (Exception)
+            catch (Exception e) when (!IsCritical(e))
             {
-                // Content the codec cannot serialize at all - a value that is not hex, say. It
-                // will refuse the transaction when it builds the blob and explain why; measuring
-                // is not the place to find that out, and reporting it from here would replace a
-                // precise message with a vague one.
-                return -1;
+                // The content is arbitrary user or JSON input, and the codec's failures on it come
+                // in several unrelated types (InvalidJsonException, BinaryCodecException,
+                // ArgumentException for a buffer of the wrong length, KeyNotFoundException for an
+                // unknown enum name, NullReferenceException for a JSON null, InvalidOperationException
+                // past the size cap, ...), so no list of them stays complete. Any of them means there
+                // is no length to report. Nothing is hidden by answering false: building the
+                // transaction runs the same codec on the same content, so a codec fault still
+                // surfaces there, with the codec's own message.
+                length = 0;
+                return false;
             }
+        }
+
+        /// <summary>
+        /// Failures that say nothing about the input and must not be turned into "nothing to measure".
+        /// </summary>
+        private static bool IsCritical(Exception e)
+        {
+            return e is OutOfMemoryException
+                || e is StackOverflowException
+                || e is AccessViolationException
+                || e is ThreadAbortException
+                || e is ThreadInterruptedException;
         }
 
         /// <summary>

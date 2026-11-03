@@ -53,6 +53,60 @@ namespace XrplTests.Xrpl.Utils
             var rippleTime = 1;
             Assert.AreEqual(DateTimeUtils.RippleTimeToUnixTime(rippleTime), unixTime);
         }
+
+        [TestMethod]
+        public void TestUToRippleTimeRoundsDown()
+        {
+            DateTimeOffset fractional = DateTimeOffset.Parse("2026-11-03T12:00:00.700Z", CultureInfo.InvariantCulture);
+            DateTimeOffset whole = DateTimeOffset.Parse("2026-11-03T12:00:00.000Z", CultureInfo.InvariantCulture);
+
+            // UnixTimeToRippleTime rounds to the nearest second (as xrpl.js does), which for 0.7 s is up.
+            Assert.AreEqual(
+                DateTimeUtils.UnixTimeToRippleTime(fractional.ToUnixTimeMilliseconds()) - 1,
+                (long)DateTimeUtils.ToRippleTime(fractional));
+            Assert.AreEqual(
+                DateTimeUtils.UnixTimeToRippleTime(whole.ToUnixTimeMilliseconds()),
+                (long)DateTimeUtils.ToRippleTime(whole));
+        }
+
+        [TestMethod]
+        public void TestUToRippleTimeSaturates()
+        {
+            Assert.AreEqual(0u, DateTimeUtils.ToRippleTime(DateTimeOffset.Parse("1999-12-31T23:59:59Z", CultureInfo.InvariantCulture)));
+            Assert.AreEqual(0u, DateTimeUtils.ToRippleTime(DateTimeOffset.MinValue));
+            Assert.AreEqual(0u, DateTimeUtils.ToRippleTime(DateTime.MinValue));
+            Assert.AreEqual(
+                uint.MaxValue,
+                DateTimeUtils.ToRippleTime(DateTimeUtils.RippleEpoch.AddSeconds((double)uint.MaxValue + 1)));
+            Assert.AreEqual(uint.MaxValue, DateTimeUtils.ToRippleTime(DateTimeOffset.MaxValue));
+            Assert.AreEqual(uint.MaxValue, DateTimeUtils.ToRippleTime(DateTime.MaxValue));
+        }
+
+        [TestMethod]
+        public void TestUFromRippleTimeRoundTrips()
+        {
+            foreach (uint rippleTime in new uint[] { 0, 1, 815_000_000, uint.MaxValue })
+                Assert.AreEqual(rippleTime, DateTimeUtils.ToRippleTime(DateTimeUtils.FromRippleTime(rippleTime)));
+
+            Assert.AreEqual(DateTimeUtils.RippleEpoch, DateTimeUtils.FromRippleTime(0));
+            Assert.AreEqual(new DateTimeOffset(2000, 1, 1, 0, 0, 1, TimeSpan.Zero), DateTimeUtils.FromRippleTime(1));
+        }
+
+        [TestMethod]
+        public void TestURippleEpochIsTheFirstOf2000()
+        {
+            Assert.AreEqual(new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero), DateTimeUtils.RippleEpoch);
+            Assert.AreEqual(DateTimeUtils.RippleEpoch.ToUnixTimeSeconds(), DateTimeUtils.RippleEpochUnixSeconds);
+        }
+
+        [TestMethod]
+        public void TestUToRippleTimeTakesUnspecifiedAsUtc()
+        {
+            DateTime unspecified = new DateTime(2026, 11, 3, 12, 0, 0, DateTimeKind.Unspecified);
+            DateTime utc = DateTime.SpecifyKind(unspecified, DateTimeKind.Utc);
+
+            Assert.AreEqual(DateTimeUtils.ToRippleTime(new DateTimeOffset(utc)), DateTimeUtils.ToRippleTime(unspecified));
+        }
     }
 
     /// <summary>
@@ -96,6 +150,18 @@ namespace XrplTests.Xrpl.Utils
             DateTime local = new DateTime(2000, 1, 1, 5, 30, 0, DateTimeKind.Local);
 
             Assert.AreEqual(0, DateTimeUtils.ISOTimeToRippleTime(local));
+        }
+
+        [TestMethod]
+        public void TestUToRippleTimeConvertsLocalToUtc()
+        {
+            using LocalTimeZoneScope zone = LocalTimeZoneScope.Use(LocalTimeZoneScope.PlusFiveThirty);
+
+            DateTime local = new DateTime(2026, 11, 3, 17, 30, 0, DateTimeKind.Local);
+            DateTime utcTwin = new DateTime(2026, 11, 3, 12, 0, 0, DateTimeKind.Utc);
+
+            Assert.AreEqual(DateTimeUtils.ToRippleTime(new DateTimeOffset(utcTwin)), DateTimeUtils.ToRippleTime(local));
+            Assert.AreEqual(DateTimeUtils.ToRippleTime(utcTwin), DateTimeUtils.ToRippleTime(local));
         }
 
         [TestMethod]

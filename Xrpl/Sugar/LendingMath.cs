@@ -2,6 +2,7 @@ using System;
 
 using Xrpl.BinaryCodec.Numbers;
 using Xrpl.Models.Ledger;
+using Xrpl.Utils;
 
 using static Xrpl.Models.Common.Common;
 
@@ -15,7 +16,6 @@ namespace Xrpl.Sugar
     {
         private const uint TenthBipsPerUnity = 100_000;
         private const uint SecondsInYear = 365 * 24 * 60 * 60;
-        private static readonly DateTime RippleEpoch = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
         /// <c>loanPeriodicRate</c>: <c>tenthBipsOfValue(Number(interval), rate) / kSecondsInYear</c>,
@@ -331,17 +331,11 @@ namespace Xrpl.Sugar
             return (XrplNumber.Subtract(interest, fee, c), fee);
         }
 
-        /// <summary>Seconds since the XRPL epoch; a local time is converted, an unspecified one is taken as UTC.</summary>
-        internal static long RippleSeconds(DateTime time)
-        {
-            DateTime utc = time.Kind switch
-            {
-                DateTimeKind.Local => time.ToUniversalTime(),
-                DateTimeKind.Unspecified => DateTime.SpecifyKind(time, DateTimeKind.Utc),
-                _ => time,
-            };
-            return (long)Math.Floor((utc - RippleEpoch).TotalSeconds);
-        }
+        /// <summary>
+        /// Seconds since the XRPL epoch, rounded down: <see cref="DateTimeUtils.ToRippleTime(DateTime)"/>.
+        /// A time before 2000 is 0 and one past the UInt32 range is <see cref="uint.MaxValue"/>.
+        /// </summary>
+        internal static long RippleSeconds(DateTime time) => DateTimeUtils.ToRippleTime(time);
 
         /// <summary><c>computePaymentFactor</c>, equation (6) of XLS-66; <paramref name="payments"/> is not zero and the rate is not zero.</summary>
         private static XrplNumber PaymentFactor(XrplNumber rate, uint payments, bool fixCleanup3_2_0, NumberContext c)

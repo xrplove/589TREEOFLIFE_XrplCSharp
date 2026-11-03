@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Xrpl.Utils;
 
 namespace Xrpl.Client.Json.Converters
 {
@@ -9,7 +10,7 @@ namespace Xrpl.Client.Json.Converters
     public class RippleDateTimeConverter : JsonConverter<DateTime?>
     {
         /// <summary> ripple start time </summary>
-        private static DateTime RippleStartTime = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+        private static readonly DateTime RippleStartTime = DateTimeUtils.RippleEpoch.UtcDateTime;
 
         /// <summary>
         /// write  <see cref="DateTime"/>  to json object
@@ -22,12 +23,9 @@ namespace Xrpl.Client.Json.Converters
         {
             if (value is DateTime dateTime)
             {
-                // DateTime subtraction compares ticks and ignores Kind, so a Local value
-                // (DateTime.Now) must be moved to UTC first or the result is off by the UTC offset.
-                // Unspecified stays as it is and is read as UTC, as it always was.
-                DateTime utc = dateTime.Kind == DateTimeKind.Local ? dateTime.ToUniversalTime() : dateTime;
-                long totalSeconds = (long)(utc - RippleStartTime).TotalSeconds;
-                writer.WriteNumberValue(totalSeconds);
+                // Rounds down and saturates into the UInt32 field range; a Local value is moved
+                // to UTC first and Unspecified is read as UTC.
+                writer.WriteNumberValue(DateTimeUtils.ToRippleTime(dateTime));
             }
             else
             {

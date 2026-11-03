@@ -14,6 +14,7 @@ using Xrpl.Models.Ledger;
 using Xrpl.Models.Methods;
 using Xrpl.Models.Transactions;
 using Xrpl.Sugar;
+using Xrpl.Utils;
 using Xrpl.Utils.Hashes;
 
 using static Xrpl.Models.Common.Common;
@@ -574,7 +575,7 @@ namespace Xrpl.Amounts
             return new DexSnapshot
             {
                 // The transaction lands in a later ledger, whose parent closed no earlier than this one.
-                ParentCloseTime = ledger.CloseTime is { } closed ? (uint)LendingMath.RippleSeconds(closed) : 0,
+                ParentCloseTime = ledger.CloseTime is { } closed ? DateTimeUtils.ToRippleTime(closed) : 0,
                 LedgerSequence = uint.Parse(ledger.LedgerIndex, CultureInfo.InvariantCulture),
                 ReserveBase = reserveBase,
                 ReserveIncrement = reserveIncrement,
@@ -839,7 +840,7 @@ namespace Xrpl.Amounts
                     TakerPays = offer.TakerPays.ToXrplAmount(),
                     TakerGets = offer.TakerGets.ToXrplAmount(),
                     Quality = XrplQuality.FromBookDirectory(offer.BookDirectory),
-                    Expiration = offer.Expiration is { } expiration ? (uint)LendingMath.RippleSeconds(expiration) : null,
+                    Expiration = offer.Expiration is { } expiration ? DateTimeUtils.ToRippleTime(expiration) : null,
                     DomainId = string.IsNullOrEmpty(offer.DomainID) ? null : offer.DomainID,
                     Hybrid = offer.Flags.HasFlag(OfferFlags.lsfHybrid),
                 });
@@ -1017,7 +1018,7 @@ namespace Xrpl.Amounts
                 TakerPays = offer.TakerPays.ToXrplAmount(),
                 TakerGets = offer.TakerGets.ToXrplAmount(),
                 Quality = XrplQuality.FromBookDirectory(directory ?? offer.BookDirectory),
-                Expiration = offer.Expiration is { } expiration ? (uint)LendingMath.RippleSeconds(expiration) : null,
+                Expiration = offer.Expiration is { } expiration ? DateTimeUtils.ToRippleTime(expiration) : null,
                 DomainId = string.IsNullOrEmpty(offer.DomainID) ? null : offer.DomainID,
                 Hybrid = (offer.Flags ?? 0).HasFlag(OfferFlags.lsfHybrid),
             };
@@ -1069,7 +1070,7 @@ namespace Xrpl.Amounts
                 DiscountedFee = checked((ushort)(amm.AuctionSlot?.DiscountedFee ?? 0)),
                 SlotAccount = amm.AuctionSlot?.Account,
                 SlotAuthAccounts = authorized,
-                SlotExpiration = amm.AuctionSlot?.Expiration is { } expiration ? (uint)LendingMath.RippleSeconds(expiration) : null,
+                SlotExpiration = amm.AuctionSlot?.Expiration is { } expiration ? DateTimeUtils.ToRippleTime(expiration) : null,
             };
         }
 
@@ -1203,7 +1204,7 @@ namespace Xrpl.Amounts
                 Issuer = credential.Issuer,
                 CredentialType = credential.CredentialType,
                 Accepted = ((credential.Flags ?? 0) & CredentialAccepted) != 0,
-                Expiration = credential.Expiration is { } expiration ? (uint)LendingMath.RippleSeconds(expiration) : null,
+                Expiration = credential.Expiration is { } expiration ? DateTimeUtils.ToRippleTime(expiration) : null,
             };
         }
 

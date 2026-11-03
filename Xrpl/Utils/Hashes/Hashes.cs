@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 
 using Xrpl.AddressCodec;
 using Xrpl.Client.Exceptions;
+using Xrpl.Models.Common;
 
 // https://github.com/XRPLF/xrpl.js/blob/main/packages/xrpl/src/utils/hashes/index.ts
 
@@ -39,9 +40,12 @@ namespace Xrpl.Utils.Hashes
         /// </summary>
         /// <param name="code">currency code</param>
         /// <returns></returns>
-        // \A…\z (not ^…$): in .NET $ also matches before a trailing newline,
-        // so "40 hex chars + \n" would slip through the ^…$ form
-        public static bool IsHexCurrencyCode(this string code) => Regex.IsMatch(code, @"\A[0-9a-fA-F]{40}\z");
+        // Exact length plus a per-character scan: unlike a ^…$ pattern, "40 hex chars + \n" is rejected
+        public static bool IsHexCurrencyCode(this string code)
+        {
+            ArgumentNullException.ThrowIfNull(code);
+            return AssetIdentity.IsHexCurrencyCode(code);
+        }
 
         /// <summary>
         /// checks and generates a token code for transmission to the network

@@ -5,6 +5,7 @@ using System.Globalization;
 using Xrpl.BinaryCodec.Numbers;
 using Xrpl.Models.Transactions;
 using Xrpl.Sugar;
+using Xrpl.Utils;
 using Xrpl.Utils.Hashes;
 
 using static Xrpl.Models.Common.Common;
@@ -111,7 +112,7 @@ namespace Xrpl.Amounts
                 Sequence = offer.Sequence ?? 0,
                 OfferSequence = offer.OfferSequence,
                 TicketSequence = offer.TicketSequence,
-                Expiration = offer.Expiration is { } expiration ? (uint)LendingMath.RippleSeconds(expiration) : null,
+                Expiration = offer.Expiration is { } expiration ? DateTimeUtils.ToRippleTime(expiration) : null,
                 DomainId = offer.DomainID,
             };
 

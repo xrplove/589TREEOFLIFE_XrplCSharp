@@ -451,4 +451,110 @@ public class TestUAmmMath
         Assert.AreEqual(0m, AmmMath.LPTokensForSingleAssetDeposit(100m, 0m, 100m, 1000));
         Assert.AreEqual(0m, AmmMath.LPTokensForSingleAssetWithdraw(100m, 0m, 100m, 1000));
     }
+
+    /// <summary>
+    /// Equation 3 multiplies the LP token balance by a ratio near the deposit-to-pool ratio, and the
+    /// multiply-first product of a huge deposit into a tiny pool overflows <see cref="decimal"/>; only
+    /// then is the ratio divided down before it meets the balance.
+    /// </summary>
+    [TestMethod]
+    public void TestUAHugeDepositIntoATinyPoolDoesNotOverflow()
+    {
+        decimal tokens = AmmMath.LPTokensForSingleAssetDeposit(1m, 1e22m, 1e10m, 0);
+
+        // Equation 3 at fee 0 (f1 = f2 = 1), worked in double, which does not overflow here:
+        // c = sqrt(1 + r) - 1 and t = T * (r - c) / (1 + c), about 1e21 for r = 1e22 and T = 1e10.
+        double r = 1e22;
+        double c = Math.Sqrt(1d + r) - 1d;
+        double expected = 1e10 * (r - c) / (1d + c);
+
+        Assert.AreEqual(expected, (double)tokens, expected * 1e-9);
+    }
+
+    /// <summary>
+    /// The node credits a two-sided deposit at the smaller of the two ratios and leaves the
+    /// surplus of the other asset with the depositor.
+    /// </summary>
+    [TestMethod]
+    public void TestUAnUnbalancedTwoSidedDepositIsCreditedAtTheSmallerRatio()
+    {
+        Assert.AreEqual(100m, AmmMath.LPTokensForProportionalDeposit(1000m, 1000m, 100m, 200m, 1000m));
+    }
+
+    /// <summary>
+    /// The square root must finish at every magnitude a decimal can hold, including the two
+    /// extremes where the seed from <see cref="Math.Sqrt"/> is least helpful.
+    /// </summary>
+    [TestMethod]
+    [Timeout(2000)]
+    public void TestUSqrtSettlesAcrossTheDecimalRange()
+    {
+        for (int k = -28; k <= 28; k++)
+        {
+            decimal value = 1m;
+            for (int i = 0; i < Math.Abs(k); i++)
+            {
+                value = k < 0 ? value / 10m : value * 10m;
+            }
+
+            decimal root = AmmMath.Sqrt(value);
+            Assert.IsTrue(root > 0m, $"sqrt(1e{k}) is not positive: {root}");
+
+            if (value >= 1e-8m && value <= 1e28m)
+            {
+                Assert.IsTrue(
+                    Math.Abs(root * root - value) <= value * 1e-20m,
+                    $"sqrt(1e{k}) = {root} squares to {root * root}");
+            }
+        }
+
+        Assert.IsTrue(AmmMath.Sqrt(decimal.MaxValue) > 0m);
+    }
+
+    /// <summary>
+    /// Dividing first rescues the overflow case but costs significant digits on small deposits:
+    /// a decimal keeps 28 digits after the point, so a quotient near 1e-12 holds 16 digits where
+    /// the product it feeds could have held all 28. The multiplication therefore stays first and
+    /// the order flips only where it would overflow.
+    /// </summary>
+    [TestMethod]
+    public void TestUSmallDepositsKeepTheDigitsOfTheMultiplyFirstOrder()
+    {
+        const decimal Pool = 1_000_000m;
+
+        foreach (uint fee in new uint[] { 0, 1000 })
+        {
+            foreach (decimal lp in new[] { 1m, 1_000_000m, 1e15m })
+            {
+                foreach (decimal ratio in new[] { 1e-3m, 1e-6m, 1e-9m, 1e-12m, 1e-15m, 1e-18m })
+                {
+                    decimal deposit = ratio * Pool;
+                    (decimal r, decimal c) = SingleDepositTerms(Pool, deposit, fee);
+
+                    decimal multiplyFirst = lp * (r - c) / (1m + c);
+
+                    Assert.AreEqual(
+                        multiplyFirst,
+                        AmmMath.LPTokensForSingleAssetDeposit(Pool, deposit, lp, fee),
+                        $"fee {fee}, LP balance {lp}, ratio {ratio}");
+                }
+            }
+        }
+
+        (decimal ratioAtTwelve, decimal cAtTwelve) = SingleDepositTerms(Pool, 1e-6m, 1000);
+        decimal multiplyFirstAtTwelve = 1_000_000m * (ratioAtTwelve - cAtTwelve) / (1m + cAtTwelve);
+        decimal divideFirst = 1_000_000m * ((ratioAtTwelve - cAtTwelve) / (1m + cAtTwelve));
+        Assert.IsTrue(
+            Math.Abs(divideFirst - multiplyFirstAtTwelve) / multiplyFirstAtTwelve > 1e-20m,
+            "Divide-first no longer loses digits here; the order guard may be unnecessary.");
+    }
+
+    private static (decimal Ratio, decimal C) SingleDepositTerms(decimal pool, decimal deposit, uint tradingFee)
+    {
+        decimal fee = tradingFee / 100_000m;
+        decimal f1 = 1m - fee;
+        decimal f2 = (1m - fee / 2m) / f1;
+        decimal r = deposit / pool;
+        return (r, AmmMath.Sqrt(f2 * f2 + r / f1) - f2);
+    }
 }
