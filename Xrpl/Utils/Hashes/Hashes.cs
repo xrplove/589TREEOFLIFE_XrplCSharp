@@ -226,6 +226,47 @@ namespace Xrpl.Utils.Hashes
                     + normalized).Sha512Half();
         }
 
+        /// <summary>
+        /// Get the owner of an <c>NFTokenPage</c> ledger entry from the page's ledger index.
+        /// Mirrors rippled's <c>keylet::nftpage_min(owner)</c> and <c>keylet::nftpage_max(owner)</c>: the high
+        /// 160 bits of a page index are the owner's AccountID and the low 96 bits (<c>nft::kPageMask</c>) come from
+        /// an NFTokenID. An NFTokenPage carries no <c>Owner</c> field, so this is the only way to tell whose page it is
+        /// without asking the ledger.
+        /// </summary>
+        /// <param name="pageIndex">
+        /// The 64-character hexadecimal ledger index of the page, e.g. the <c>index</c> of an <c>account_objects</c>
+        /// entry or a <c>LedgerIndex</c> from transaction metadata. Upper and lower case are both accepted;
+        /// whitespace and a <c>0x</c> prefix are not.
+        /// </param>
+        /// <returns>The classic address of the account that owns the page.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="pageIndex"/> is null, not 64 characters long or not hexadecimal.</exception>
+        /// <remarks>
+        /// The result only means something for the index of an <c>NFTokenPage</c>: any other 256-bit ledger index
+        /// (an offer, a trust line) is a hash and its first 20 bytes are not an account.
+        /// </remarks>
+        public static string GetNFTokenPageOwner(string pageIndex)
+        {
+            const int indexHexLength = 64;
+            const int accountIdHexLength = 40;
+
+            if (pageIndex is null || pageIndex.Length != indexHexLength)
+            {
+                throw new ArgumentException("pageIndex must be a 64-character hexadecimal string", nameof(pageIndex));
+            }
+
+            // Checked explicitly: Hex.Decode would also throw, but with an exception type that does not name the argument.
+            foreach (char c in pageIndex)
+            {
+                bool isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+                if (!isHex)
+                {
+                    throw new ArgumentException("pageIndex must be a 64-character hexadecimal string", nameof(pageIndex));
+                }
+            }
+
+            return XrplCodec.EncodeAccountID(pageIndex.Substring(0, accountIdHexLength).FromHex());
+        }
+
     }
 }
 

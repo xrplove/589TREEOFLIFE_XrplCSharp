@@ -1,5 +1,9 @@
 # Changes
 
+## 11.23.0.0 02/11/2026
+
+* `Hashes.GetNFTokenPageOwner(pageIndex)` returns the classic address of the owner of an `NFTokenPage` from its ledger index: the high 160 bits are the owner's AccountID (rippled `keylet::nftpage_min`/`nftpage_max`; the low 96 bits come from an NFTokenID). Upper and lower case hex are accepted; a null, non-64-character or non-hex index raises `ArgumentException`. Tests: `TestUHashes.TestGetNFTokenPageOwner*` in `Xrpl.Tests`
+
 ## 11.22.0.0 28/10/2026
 
 * **Breaking:** `XrplWallet.FromMnemonic` (BIP-39) stores the secp256k1 private key with the `00` prefix, as seed-derived keys and xrpl.js do (`0013FC…`, 66 hex characters; was the bare 64). `K256KeyPair.Sign` reads the key as unsigned (`new BigInteger(1, …)`): a raw 32-byte key whose first byte is `0x80` or above was read as negative and produced signatures that do not verify, which was the case for about half of all mnemonic wallets. `K256KeyPair.Pk` pads the key to 32 bytes. What breaks: code that compares or stores `FromMnemonic(...).PrivateKey` sees the prefixed form. Migration: none for signing; a stored 64-hex key still signs correctly
