@@ -215,14 +215,12 @@ public class LOConverter : JsonConverter<BaseLedgerEntry>
             return null;
         }
 
-        string rawJson = element.Value.GetRawText();
-
         // Remove LOConverter to avoid infinite recursion
         JsonSerializerOptions innerOptions = JsonSerializerOptionsCache.WithoutConverter<LOConverter>(options);
 
         Type targetType = GetTypeForLedgerEntry(type);
 
-        BaseLedgerEntry result = (BaseLedgerEntry)JsonSerializer.Deserialize(rawJson, targetType, innerOptions);
+        BaseLedgerEntry result = (BaseLedgerEntry)element.Value.Deserialize(targetType, innerOptions);
 
         if (result != null)
         {

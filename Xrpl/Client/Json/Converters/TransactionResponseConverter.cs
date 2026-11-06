@@ -164,22 +164,21 @@ namespace Xrpl.Client.Json.Converters
         /// <summary> read  <see cref="ITransactionResponse"/>   from json object </summary>
         public override ITransactionResponse Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
-            JsonElement root = doc.RootElement;
+            // The failure below names the transaction, and by then the reader has moved on.
+            Utf8JsonReader start = reader;
 
-            string transactionType = root.TryGetProperty("TransactionType", out JsonElement ttEl)
-                ? ttEl.GetString()
+            string transactionType = JsonMemberReader.TryFind(reader, "TransactionType"u8, out Utf8JsonReader ttValue)
+                ? ttValue.GetString()
                 : null;
 
             ITransactionResponse transaction = Create(transactionType);
-            string rawJson = root.GetRawText();
 
             // Remove this converter to avoid infinite recursion
             JsonSerializerOptions innerOptions = JsonSerializerOptionsCache.WithoutConverter<TransactionResponseConverter>(options);
 
             try
             {
-                return (ITransactionResponse)JsonSerializer.Deserialize(rawJson, transaction.GetType(), innerOptions);
+                return (ITransactionResponse)JsonSerializer.Deserialize(ref reader, transaction.GetType(), innerOptions);
             }
             catch (JsonException ex)
             {
@@ -189,8 +188,8 @@ namespace Xrpl.Client.Json.Converters
                 // dropped hash, date and meta without a trace, so the caller could not even tell
                 // which transaction was lost. The inner position refers to the nested document,
                 // not the caller's, and is left on the inner exception.
-                string hash = root.TryGetProperty("hash", out JsonElement hashEl) && hashEl.ValueKind == JsonValueKind.String
-                    ? hashEl.GetString()
+                string hash = JsonMemberReader.TryFind(start, "hash"u8, out Utf8JsonReader hashValue) && hashValue.TokenType == JsonTokenType.String
+                    ? hashValue.GetString()
                     : null;
                 string subject = (transactionType ?? "transaction") + (hash == null ? string.Empty : " " + hash);
                 throw new JsonException($"Cannot read {subject}: {ex.Message}", ex);

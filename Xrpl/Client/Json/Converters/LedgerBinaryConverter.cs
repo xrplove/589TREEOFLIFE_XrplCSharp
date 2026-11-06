@@ -39,9 +39,9 @@ namespace Xrpl.Client.Json.Converters
         /// <summary>
         /// create <see cref="LedgerEntity"/> or  <see cref="LedgerBinaryEntity"/> 
         /// </summary>
-        private static Type DetermineType(JsonElement root)
+        private static Type DetermineType(Utf8JsonReader reader)
         {
-            return root.TryGetProperty("ledger_data", out _)
+            return JsonMemberReader.TryFind(reader, "ledger_data"u8, out _)
                 ? typeof(LedgerBinaryEntity)
                 : typeof(LedgerEntity);
         }
@@ -53,15 +53,11 @@ namespace Xrpl.Client.Json.Converters
         /// <returns><see cref="LedgerEntity"/> or  <see cref="LedgerBinaryEntity"/> </returns>
         public override IBaseLedgerEntity Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
-            JsonElement root = doc.RootElement;
-            string rawJson = root.GetRawText();
-
             // Remove this converter to avoid infinite recursion
             JsonSerializerOptions innerOptions = JsonSerializerOptionsCache.WithoutConverter<LedgerBinaryConverter>(options);
 
-            Type targetType = DetermineType(root);
-            return (IBaseLedgerEntity)JsonSerializer.Deserialize(rawJson, targetType, innerOptions);
+            Type targetType = DetermineType(reader);
+            return (IBaseLedgerEntity)JsonSerializer.Deserialize(ref reader, targetType, innerOptions);
         }
 
         public override bool CanConvert(Type typeToConvert) =>

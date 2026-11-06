@@ -158,15 +158,11 @@ public class TransactionRequestConverter : JsonConverter<ITransactionRequest>
     /// <summary> read  <see cref="ITransactionRequest"/>   from json object </summary>
     public override ITransactionRequest Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        using JsonDocument doc = JsonDocument.ParseValue(ref reader);
-        JsonElement root = doc.RootElement;
-
-        string transactionType = root.TryGetProperty("TransactionType", out JsonElement ttEl)
-            ? ttEl.GetString()
+        string transactionType = JsonMemberReader.TryFind(reader, "TransactionType"u8, out Utf8JsonReader ttValue)
+            ? ttValue.GetString()
             : null;
 
         ITransactionRequest transactionRequest = Create(transactionType);
-        string rawJson = root.GetRawText();
 
         // Remove this converter to avoid infinite recursion
         JsonSerializerOptions innerOptions = JsonSerializerOptionsCache.WithoutConverter<TransactionRequestConverter>(options);
@@ -175,7 +171,7 @@ public class TransactionRequestConverter : JsonConverter<ITransactionRequest>
         // instance created above - a transaction with nothing but its TransactionType set. That
         // object is indistinguishable from a real one to everything downstream, including Sign:
         // malformed input became a signable, empty transaction instead of an error.
-        return (ITransactionRequest)JsonSerializer.Deserialize(rawJson, transactionRequest.GetType(), innerOptions);
+        return (ITransactionRequest)JsonSerializer.Deserialize(ref reader, transactionRequest.GetType(), innerOptions);
     }
 
     /// <inheritdoc />
