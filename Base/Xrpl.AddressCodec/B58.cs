@@ -308,10 +308,10 @@ namespace Xrpl.AddressCodec
         //
         // number -> number / 256, returns number % 256
         //
-        private static byte DivMod256(IList<byte> number58, int startAt)
+        private static byte DivMod256(byte[] number58, int startAt)
         {
             var remainder = 0;
-            for (var i = startAt; i < number58.Count; i++)
+            for (var i = startAt; i < number58.Length; i++)
             {
                 var digit58 = number58[i] & 0xFF;
                 var temp = remainder * 58 + digit58;
@@ -327,10 +327,10 @@ namespace Xrpl.AddressCodec
         //
         // number -> number / 58, returns number % 58
         //
-        private static byte DivMod58(IList<byte> number, int startAt)
+        private static byte DivMod58(byte[] number, int startAt)
         {
             var remainder = 0;
-            for (var i = startAt; i < number.Count; i++)
+            for (var i = startAt; i < number.Length; i++)
             {
                 var digit256 = number[i] & 0xFF;
                 var temp = remainder * 256 + digit256;
@@ -487,13 +487,10 @@ namespace Xrpl.AddressCodec
     {
         internal static byte[] DoubleDigest(byte[] buffer)
         {
-            return Sha256(Sha256(buffer));
-        }
-
-        internal static byte[] Sha256(byte[] buffer)
-        {
-            var hash = SHA256.Create();
-            return hash.ComputeHash(buffer);
+            using (var hash = SHA256.Create())
+            {
+                return hash.ComputeHash(hash.ComputeHash(buffer));
+            }
         }
     }
 }

@@ -259,7 +259,7 @@ public static class BatchNormalizer
         // signature would fix an inner transaction other than the one the caller was shown - and
         // nothing would say so. Strict without the signing filter, because an id covers the whole
         // transaction, signing fields and not.
-        var st = Xrpl.BinaryCodec.Types.StObject.FromJsonStrict(JsonNode.Parse(normalizedInnerTx.ToJsonString()));
+        var st = Xrpl.BinaryCodec.Types.StObject.FromJsonStrict(normalizedInnerTx);
         var bytes = st.ToBytes();
 
         var prefix = Xrpl.BinaryCodec.Util.Bits.GetBytes((uint)Xrpl.BinaryCodec.Hashing.HashPrefix.TransactionId);
