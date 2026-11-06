@@ -4,8 +4,7 @@ using System.Reflection;
 namespace Xrpl.Models.Utils;
 
 /// <summary>
-/// A member-wise copy of a model. Not a JSON round trip: that drops null members, and a constructor
-/// that sets a default (TrustSet's tfSetNoRipple) then puts back a value the caller had cleared.
+/// A member-wise copy of a model. Not a JSON round trip: that drops null members.
 /// </summary>
 internal static class ShallowCopy
 {

@@ -57,13 +57,21 @@ namespace Xrpl.Models.Transactions
     }
 
     /// <inheritdoc cref="ITrustSet" />
-    public class TrustSet : TransactionRequest, ITrustSet
+    public class TrustSet : TransactionRequest, ITrustSet, IJsonOnDeserializing
     {
+        /// <summary>
+        /// A TrustSet to submit, with <see cref="TrustSetFlags.tfSetNoRipple"/> preset. Assign <see cref="Flags"/> to
+        /// replace the preset, or null to send no flags. A TrustSet read from JSON does not get the preset.
+        /// </summary>
         public TrustSet()
         {
             TransactionType = TransactionType.TrustSet;
             Flags = TrustSetFlags.tfSetNoRipple;
         }
+
+        // The serializer runs the constructor first, and a Flags the JSON does not carry is never assigned. rippled reads
+        // a missing Flags as no flags, so keeping the preset would report, and re-sign, a different transaction.
+        void IJsonOnDeserializing.OnDeserializing() => Flags = null;
 
         /// <inheritdoc />
         public new TrustSetFlags? Flags
