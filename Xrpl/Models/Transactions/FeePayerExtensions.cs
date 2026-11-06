@@ -50,7 +50,10 @@ public static class FeePayerExtensions
     /// transaction applies. Without such a node the fee came out of the sponsor's own account.
     /// </remarks>
     /// <param name="tx">The transaction.</param>
-    /// <param name="meta">Its metadata; without it the result is <see cref="GetFeePayer(ITransactionCommon)"/>.</param>
+    /// <param name="meta">
+    /// Its metadata, with its nodes parsed. Without them, as for metadata read in binary form, nothing tells a prepaid
+    /// sponsorship from the sponsor's account, and the result is <see cref="GetFeePayer(ITransactionCommon)"/>.
+    /// </param>
     /// <returns>The classic address of the payer, or <see langword="null"/> for a prepaid sponsorship.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="tx"/> is <see langword="null"/>.</exception>
     public static string GetFeePayer(this ITransactionCommon tx, ITransactionMetadata meta)

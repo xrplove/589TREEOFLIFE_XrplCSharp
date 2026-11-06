@@ -432,6 +432,7 @@ namespace Xrpl.Sugar
             Index = loan.Index,
             LedgerIndex = loan.LedgerIndex,
             Flags = loan.Flags,
+            Sponsor = loan.Sponsor,
             Borrower = loan.Borrower,
             LoanBrokerID = loan.LoanBrokerID,
             LoanSequence = loan.LoanSequence,

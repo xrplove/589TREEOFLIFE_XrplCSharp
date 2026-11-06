@@ -26,8 +26,8 @@ public class TestUInnerTxId
     }
 
     /// <summary>
-    /// A <see cref="JsonObject"/> built in code keeps the CLR types of its values, and the codec reads it without a trip
-    /// through text: the same transaction written either way has one id.
+    /// A <see cref="JsonObject"/> built in code keeps the CLR types of its values: the same transaction written either
+    /// way has one id.
     /// </summary>
     [TestMethod]
     public void TestUValuesBuiltInCodeGiveTheIdOfTheSameTextParsed()
@@ -53,6 +53,31 @@ public class TestUInnerTxId
         JsonObject parsed = JsonNode.Parse(built.ToJsonString())!.AsObject();
 
         Assert.AreEqual(parsed.ComputeInnerTxId(), built.ComputeInnerTxId());
+    }
+
+    /// <summary>
+    /// The codec reads an XRP amount as <see cref="ulong"/>, and a value built in code answers only for its own CLR type,
+    /// so the trip through text is what lets an <see cref="int"/> or a <see cref="long"/> through.
+    /// </summary>
+    [TestMethod]
+    public void TestUAnAmountBuiltInCodeAsAnyIntegerHasTheIdOfItsText()
+    {
+        JsonObject Inner(JsonNode amount) => new JsonObject
+        {
+            ["TransactionType"] = "Payment",
+            ["Account"] = "rQ3fNyLjbvcDaPNS4EAJY8aT9zR3uGk17c",
+            ["Destination"] = "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+            ["Amount"] = amount,
+            ["Fee"] = "0",
+            ["Sequence"] = 1,
+            ["SigningPubKey"] = "",
+        };
+
+        string id = Inner("1000").ComputeInnerTxId();
+
+        Assert.AreEqual(id, Inner(1000).ComputeInnerTxId());
+        Assert.AreEqual(id, Inner(1000L).ComputeInnerTxId());
+        Assert.AreEqual(id, Inner(1000UL).ComputeInnerTxId());
     }
 
     /// <summary>The object the id is computed from stays the caller's: reading it must not change it.</summary>
