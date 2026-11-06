@@ -14,7 +14,7 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/StaticBit-io/XrplCSharp</PackageProjectUrl>
     <Title>XrplCSharp</Title>
-    <PackageVersion>11.25.0.0</PackageVersion>
+    <PackageVersion>11.25.1.0</PackageVersion>
   </PropertyGroup>
 
   <PropertyGroup>

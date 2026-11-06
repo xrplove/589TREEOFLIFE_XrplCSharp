@@ -23,7 +23,7 @@ Both build on the [`Xrpl`](https://www.nuget.org/packages/Xrpl) SDK. The client 
 | `PAYMENT-SIGNATURE` | client → server | `{ x402Version:2, accepted, payload:{ signedTxBlob, invoiceId } }` |
 | `PAYMENT-RESPONSE` | server → client | `{ success, transaction, network, payer }` |
 
-- `asset` is `"XRP"` (amount in **drops**) or a 40-hex currency code (e.g. RLUSD) with `extra.issuer` and a decimal `amount`.
+- `asset` is exactly `"XRP"` (amount in **drops**) or a 40-hex currency code (e.g. RLUSD) with `extra.issuer` and a decimal `amount`.
 - The payment intent is bound to the XRPL transaction via the native `InvoiceID` field (`Payment.InvoiceID = SHA-256(invoiceId)`) and/or a `Memo` (`MemoData` = hex of the raw `invoiceId`), selectable via `X402IntentBinding` (default `Both`).
 - `Payment.SourceTag` is taken from `extra.sourceTag` (the x402 protocol value `804681468`); `DestinationTag` from `extra.destinationTag` when present.
 

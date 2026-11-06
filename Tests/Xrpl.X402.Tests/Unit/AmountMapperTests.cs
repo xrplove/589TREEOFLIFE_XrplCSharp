@@ -38,4 +38,25 @@ public class AmountMapperTests
         PaymentRequirement req = new() { Asset = "USD", Amount = "1" };
         Assert.ThrowsExactly<X402PaymentException>(() => X402AmountMapper.ToCurrency(req));
     }
+
+    [TestMethod]
+    public void TestUMapsLowercaseXrpAsAnIssuedCurrency()
+    {
+        PaymentRequirement req = new()
+        {
+            Asset = "xrp", Amount = "2.50",
+            Extra = new() { ["issuer"] = System.Text.Json.JsonDocument.Parse("\"rIssuer\"").RootElement }
+        };
+        Currency c = X402AmountMapper.ToCurrency(req);
+        Assert.IsFalse(X402AmountMapper.IsXrp(req));
+        Assert.AreEqual("xrp", c.CurrencyCode);
+        Assert.AreEqual("rIssuer", c.Issuer);
+    }
+
+    [TestMethod]
+    public void TestULowercaseXrpWithoutIssuerThrows()
+    {
+        PaymentRequirement req = new() { Asset = "xrp", Amount = "1000000" };
+        Assert.ThrowsExactly<X402PaymentException>(() => X402AmountMapper.ToCurrency(req));
+    }
 }

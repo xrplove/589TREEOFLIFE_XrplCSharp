@@ -11,12 +11,12 @@ namespace Xrpl.X402;
 public static class X402AmountMapper
 {
     /// <summary>
-    /// Returns <c>true</c> when the requirement's asset is XRP (case-insensitive comparison).
+    /// Returns <c>true</c> when the requirement's asset is native XRP. The code is compared exactly:
+    /// the ledger reserves <c>XRP</c> alone, and <c>xrp</c> is a legal issued currency code.
     /// </summary>
     /// <param name="req">The payment requirement to inspect.</param>
     /// <returns><c>true</c> for XRP; <c>false</c> for IOU/token assets.</returns>
-    public static bool IsXrp(PaymentRequirement req) =>
-        string.Equals(req.Asset, "XRP", System.StringComparison.OrdinalIgnoreCase);
+    public static bool IsXrp(PaymentRequirement req) => AssetIdentity.IsXrp(req.Asset);
 
     /// <summary>
     /// Converts the requirement's amount and asset to an XRPL <see cref="Currency"/> instance.

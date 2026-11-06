@@ -10,7 +10,7 @@
     <Title>Xrpl.X402.AspNetCore</Title>
     <Description>ASP.NET Core server middleware (x402 require_payment) for accepting XRPL agentic payments. Adds a RequirePayment endpoint filter plus ledger-settling and t54 facilitators that verify and settle x402 PAYMENT-SIGNATUREs on the XRP Ledger.</Description>
     <PackageId>Xrpl.X402.AspNetCore</PackageId>
-    <PackageVersion>1.1.0</PackageVersion>
+    <PackageVersion>1.1.1</PackageVersion>
     <NeutralLanguage>en-US</NeutralLanguage>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/StaticBit-io/XrplCSharp</PackageProjectUrl>

@@ -1,5 +1,16 @@
 # Changes
 
+## 11.25.1.0 06/11/2026
+
+* The `B58` change of 11.25.0.0 reaches those who install `Xrpl`. `Xrpl` 11.25.0 requires `Xrpl.BinaryCodec` and `Xrpl.Keypairs` 11.22.0, and both of those require `Xrpl.AddressCodec` 11.20.0, so `Xrpl.AddressCodec` 11.25.0 was installed only by asking for it directly. `Xrpl`, `Xrpl.AddressCodec`, `Xrpl.BinaryCodec` and `Xrpl.Keypairs` are all 11.25.1.0, and each requires the others at that version. No code changed
+* These four packages now move together in every release, including one with no change of its own: the release skips a version nuget.org already has, so a package left behind keeps the dependencies it was published with. Tests: `TestUPackageVersions`
+
+## Xrpl.X402 1.0.3 / Xrpl.X402.AspNetCore 1.1.1 06/11/2026
+
+* Both require `Xrpl` 11.25.1, and `Xrpl.X402.AspNetCore` requires `Xrpl.X402` 1.0.3. `Xrpl.X402` 1.0.2 requires `Xrpl` 11.22.0, and `Xrpl.X402.AspNetCore` 1.1.0 requires `Xrpl` 11.20.0 and `Xrpl.X402` 1.0.1, so installing them alone stayed on those versions. Their consumers now get every change of `Xrpl` up to 11.25.1, including the breaking ones listed below. What reaches a payment directly is the 2 XRP default fee cap of 11.21.0.0: under a load that puts the fee above it, `XrplWalletX402Signer` signs at 2 XRP unless `ClientOptions.maxFeeXRP` says otherwise
+* **Behaviour change:** `X402AmountMapper.IsXrp` compares the code exactly, as `AssetIdentity.IsXrp` does. It ignored case, so an issued currency with the code `xrp` was built and settled as native XRP: `LedgerSettlingFacilitator` accepted a payment of `amount` drops for a requirement of `amount` tokens. A requirement with `xrp` and no `extra.issuer` now fails with `invalid_requirement`, as any issued currency without an issuer does. Tests: `AmountMapperTests.TestUMapsLowercaseXrpAsAnIssuedCurrency`, `TestULowercaseXrpWithoutIssuerThrows`, `LedgerSettlingFacilitatorTests.TestUAnIssuedLowercaseXrpIsNotPaidInDrops`
+* The tests of `LedgerSettlingFacilitatorTests` and `RequirePaymentTests` carry the `TestU` prefix: without it neither the unit filter nor the integration one selected them, so these 35 tests never ran in CI or in the release job
+
 ## 11.25.0.0 06/11/2026
 
 * `ITransactionCommon.TransactionTypeName` and `BaseLedgerEntry.LedgerEntryTypeName`, `NodeBase.LedgerEntryTypeName` hold the name of the type: for a type the SDK does not know, where the enum is `Unknown`, the name the node sent, otherwise the enum member's name. `TransactionTypeName` is `Unknown` when the JSON had no type; `BaseLedgerEntry.LedgerEntryTypeName` is `null`, as in `FinalFields` and `PreviousFields`. Assigning the enum replaces the name. `ToJson()` and the node converters write the name, so `TransactionType` and `LedgerEntryType` no longer turn into the word `Unknown` on the way back to JSON. These properties now carry the JSON field through `TransactionTypeNameConverter` and `LedgerEntryTypeNameConverter`; the enum properties are `[JsonIgnore]` and keep their meaning. Tests: `TestUUnknownTypeName` in `Xrpl.Tests`

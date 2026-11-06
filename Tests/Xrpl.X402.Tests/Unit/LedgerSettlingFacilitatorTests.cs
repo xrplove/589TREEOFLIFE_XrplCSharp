@@ -108,7 +108,7 @@ public class LedgerSettlingFacilitatorTests
     private static TransactionSummary NotSubmitted() => throw new AssertFailedException("submit was not expected");
 
     [TestMethod]
-    public async Task AValidatedSuccessSettles()
+    public async Task TestUAValidatedSuccessSettles()
     {
         PaymentResponseEnvelope response = await Facilitator(() => Validated("tesSUCCESS")).VerifyAndSettleAsync(Envelope());
 
@@ -121,7 +121,7 @@ public class LedgerSettlingFacilitatorTests
     /// the resource is served, not refused while the payer's funds moved.
     /// </summary>
     [TestMethod]
-    public async Task AnUnknownOutcomeThatTurnsOutSettledIsServed()
+    public async Task TestUAnUnknownOutcomeThatTurnsOutSettledIsServed()
     {
         TransactionOutcomeUnknownException unknown = Unknown();
         List<TransactionOutcomeUnknownException> resolved = new();
@@ -137,7 +137,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AnOutcomeThatStaysUnknownIsRefusedWithItsHash()
+    public async Task TestUAnOutcomeThatStaysUnknownIsRefusedWithItsHash()
     {
         PaymentResponseEnvelope response = await Facilitator(
             () => throw Unknown(),
@@ -151,7 +151,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>A store that fails to drop the claim does not take the hash out of the response.</summary>
     [TestMethod]
-    public async Task AStoreThatCannotReleaseKeepsTheUnknownOutcome()
+    public async Task TestUAStoreThatCannotReleaseKeepsTheUnknownOutcome()
     {
         PaymentResponseEnvelope response = await Facilitator(
             () => throw Unknown(),
@@ -174,7 +174,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AnUnknownOutcomeThatTurnsOutExpiredFails()
+    public async Task TestUAnUnknownOutcomeThatTurnsOutExpiredFails()
     {
         PaymentResponseEnvelope response = await Facilitator(
             () => throw Unknown(),
@@ -185,7 +185,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AFinalFailureFails()
+    public async Task TestUAFinalFailureFails()
     {
         PaymentResponseEnvelope failed = await Facilitator(
             () => throw new TransactionFailedException("tec", "tecUNFUNDED_PAYMENT", Hash, Validated("tecUNFUNDED_PAYMENT"))).VerifyAndSettleAsync(Envelope());
@@ -197,7 +197,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AnyOtherErrorIsASettlementError()
+    public async Task TestUAnyOtherErrorIsASettlementError()
     {
         PaymentResponseEnvelope response = await Facilitator(() => throw new InvalidOperationException("boom")).VerifyAndSettleAsync(Envelope());
 
@@ -206,7 +206,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task TheCallersCancellationPropagates()
+    public async Task TestUTheCallersCancellationPropagates()
     {
         using CancellationTokenSource cancel = new();
         cancel.Cancel();
@@ -221,7 +221,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>A CheckCreate has a Destination and ends in tesSUCCESS, yet pays nothing.</summary>
     [TestMethod]
-    public async Task ATransactionOtherThanAPaymentIsRefused()
+    public async Task TestUATransactionOtherThanAPaymentIsRefused()
     {
         Dictionary<string, object> check = XrpPayment();
         check["TransactionType"] = "CheckCreate";
@@ -235,7 +235,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task APaymentToAnotherAccountIsRefused()
+    public async Task TestUAPaymentToAnotherAccountIsRefused()
     {
         Dictionary<string, object> tx = XrpPayment();
         tx["Destination"] = Issuer;
@@ -247,7 +247,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>A partial payment can deliver any fraction of its Amount and still succeed.</summary>
     [TestMethod]
-    public async Task APartialPaymentIsRefused()
+    public async Task TestUAPartialPaymentIsRefused()
     {
         Dictionary<string, object> tx = XrpPayment();
         tx["Flags"] = (uint)PaymentFlags.tfPartialPayment;
@@ -258,7 +258,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task OtherFlagsAreAccepted()
+    public async Task TestUOtherFlagsAreAccepted()
     {
         Dictionary<string, object> tx = XrpPayment();
         tx["Flags"] = (uint)PaymentFlags.tfNoDirectRipple;
@@ -269,7 +269,23 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task APaymentInAnotherAssetIsRefused()
+    public async Task TestUAnIssuedLowercaseXrpIsNotPaidInDrops()
+    {
+        PaymentRequirement requirement = TokenRequirement("xrp");
+        requirement.Amount = "1000000";
+        Currency delivered = new() { CurrencyCode = "xrp", Issuer = Issuer, Value = "1000000" };
+
+        PaymentResponseEnvelope drops = await Facilitator(NotSubmitted)
+            .VerifyAndSettleAsync(Envelope(XrpPayment("1000000"), requirement));
+        PaymentResponseEnvelope token = await Facilitator(() => Validated("tesSUCCESS", delivered))
+            .VerifyAndSettleAsync(Envelope(TokenPayment("xrp", Issuer, "1000000"), requirement));
+
+        Assert.AreEqual("invalid_asset", drops.ErrorReason);
+        Assert.IsTrue(token.Success);
+    }
+
+    [TestMethod]
+    public async Task TestUAPaymentInAnotherAssetIsRefused()
     {
         PaymentResponseEnvelope otherCurrency = await Facilitator(NotSubmitted)
             .VerifyAndSettleAsync(Envelope(TokenPayment("USD", Issuer, "2.5"), TokenRequirement()));
@@ -291,7 +307,7 @@ public class LedgerSettlingFacilitatorTests
     /// three letters or as hex; the decoder renders each in only one of those forms.
     /// </summary>
     [TestMethod]
-    public async Task ACurrencyMatchesWhicheverWayItIsWritten()
+    public async Task TestUACurrencyMatchesWhicheverWayItIsWritten()
     {
         Currency deliveredRlusd = new() { CurrencyCode = RlusdHex, Issuer = Issuer, Value = "2.5" };
         Currency deliveredUsd = new() { CurrencyCode = "USD", Issuer = Issuer, Value = "2.5" };
@@ -309,7 +325,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AnAmountOtherThanTheRequiredOneIsRefused()
+    public async Task TestUAnAmountOtherThanTheRequiredOneIsRefused()
     {
         PaymentResponseEnvelope shortDrops = await Facilitator(NotSubmitted).VerifyAndSettleAsync(Envelope(XrpPayment("999999")));
         PaymentResponseEnvelope oneDrop = await Facilitator(NotSubmitted).VerifyAndSettleAsync(Envelope(XrpPayment("1")));
@@ -323,7 +339,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>Without a LastLedgerSequence a blob stays valid forever, past any record of its hash.</summary>
     [TestMethod]
-    public async Task APaymentWithoutALastLedgerSequenceIsRefused()
+    public async Task TestUAPaymentWithoutALastLedgerSequenceIsRefused()
     {
         Dictionary<string, object> tx = XrpPayment();
         tx.Remove("LastLedgerSequence");
@@ -338,7 +354,7 @@ public class LedgerSettlingFacilitatorTests
     /// settlement replayed, even one no store remembers.
     /// </summary>
     [TestMethod]
-    public async Task APaymentWhoseWindowHasPassedIsRefused()
+    public async Task TestUAPaymentWhoseWindowHasPassedIsRefused()
     {
         PaymentResponseEnvelope atTheEnd = await Facilitator(NotSubmitted, validatedLedger: LastLedger).VerifyAndSettleAsync(Envelope());
         PaymentResponseEnvelope past = await Facilitator(NotSubmitted, validatedLedger: LastLedger + 50).VerifyAndSettleAsync(Envelope());
@@ -352,7 +368,7 @@ public class LedgerSettlingFacilitatorTests
     /// partial, but the facilitator reads what the metadata says arrived, not what was asked.
     /// </summary>
     [TestMethod]
-    public async Task ADeliveryShortOfTheRequirementIsRefused()
+    public async Task TestUADeliveryShortOfTheRequirementIsRefused()
     {
         InMemorySettledPaymentStore store = new();
         PaymentSignatureEnvelope envelope = Envelope();
@@ -384,7 +400,7 @@ public class LedgerSettlingFacilitatorTests
     /// original tesSUCCESS: only the facilitator's record stops the same payment unlocking twice.
     /// </summary>
     [TestMethod]
-    public async Task ASettledPaymentIsNotSettledAgain()
+    public async Task TestUASettledPaymentIsNotSettledAgain()
     {
         InMemorySettledPaymentStore store = new();
         PaymentSignatureEnvelope envelope = Envelope();
@@ -403,7 +419,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task ConcurrentPresentationsOfOneBlobSettleOnce()
+    public async Task TestUConcurrentPresentationsOfOneBlobSettleOnce()
     {
         InMemorySettledPaymentStore store = new();
         PaymentSignatureEnvelope envelope = Envelope();
@@ -429,7 +445,7 @@ public class LedgerSettlingFacilitatorTests
     /// the payer may present the same blob again - the reconciliation path for settlement_unknown.
     /// </summary>
     [TestMethod]
-    public async Task AnUnsettledPaymentCanBePresentedAgain()
+    public async Task TestUAnUnsettledPaymentCanBePresentedAgain()
     {
         InMemorySettledPaymentStore store = new();
         PaymentSignatureEnvelope envelope = Envelope();
@@ -466,7 +482,7 @@ public class LedgerSettlingFacilitatorTests
     /// one invoice must not settle another of the same price and payee.
     /// </summary>
     [TestMethod]
-    public async Task AnInvoiceIdMustBeBoundIntoTheTransaction()
+    public async Task TestUAnInvoiceIdMustBeBoundIntoTheTransaction()
     {
         PaymentRequirement Invoiced() => WithExtra(XrpRequirement(), "invoiceId", "inv-1");
         Dictionary<string, object> byField = XrpPayment();
@@ -489,7 +505,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>An exchange credits by the tag, so the tag an X-address or extra.destinationTag names is required.</summary>
     [TestMethod]
-    public async Task ADestinationTagThePayeeNamesIsRequired()
+    public async Task TestUADestinationTagThePayeeNamesIsRequired()
     {
         PaymentRequirement ToXAddress()
         {
@@ -527,7 +543,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>The window bounds how long a settled hash is kept; a blob valid for ever would be kept for ever.</summary>
     [TestMethod]
-    public async Task AWindowLongerThanTheTimeoutAllowsIsRefused()
+    public async Task TestUAWindowLongerThanTheTimeoutAllowsIsRefused()
     {
         Dictionary<string, object> Until(uint lastLedger)
         {
@@ -559,7 +575,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AWindowEndingInTheNextLedgerIsStillOpen()
+    public async Task TestUAWindowEndingInTheNextLedgerIsStillOpen()
     {
         Dictionary<string, object> tx = XrpPayment();
         tx["LastLedgerSequence"] = ValidatedLedger + 1;
@@ -571,7 +587,7 @@ public class LedgerSettlingFacilitatorTests
 
     /// <summary>The ledger writes a token value in any equal form: trailing zeros, an exponent.</summary>
     [TestMethod]
-    public async Task ATokenAmountIsComparedAsANumber()
+    public async Task TestUATokenAmountIsComparedAsANumber()
     {
         PaymentRequirement OneRlusd()
         {
@@ -595,7 +611,7 @@ public class LedgerSettlingFacilitatorTests
     /// delivery is not the XRP or issued currency the requirement names.
     /// </summary>
     [TestMethod]
-    public async Task ADeliveryThatCannotBeReadIsRefused()
+    public async Task TestUADeliveryThatCannotBeReadIsRefused()
     {
         PaymentResponseEnvelope unavailable = await Facilitator(
             () => Validated("tesSUCCESS", new Currency { CurrencyCode = "XRP", Value = "unavailable" })).VerifyAndSettleAsync(Envelope());
@@ -610,7 +626,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task AnMptAmountIsRefused()
+    public async Task TestUAnMptAmountIsRefused()
     {
         Dictionary<string, object> tx = XrpPayment();
         tx["Amount"] = new Dictionary<string, object> { { "mpt_issuance_id", "0000000100000000000000000000000000000000000000AB" }, { "value", "2" } };
@@ -621,7 +637,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public async Task TheStoreForgetsAClaimOnlyWellPastItsWindow()
+    public async Task TestUTheStoreForgetsAClaimOnlyWellPastItsWindow()
     {
         InMemorySettledPaymentStore store = new(retentionMarginLedgers: 10);
 
@@ -632,7 +648,7 @@ public class LedgerSettlingFacilitatorTests
     }
 
     [TestMethod]
-    public void TheServiceCollectionRegistersOneFacilitatorWithAStore()
+    public void TestUTheServiceCollectionRegistersOneFacilitatorWithAStore()
     {
         using XrplClient client = new("ws://127.0.0.1:1");
         ServiceCollection services = new();

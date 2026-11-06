@@ -57,7 +57,7 @@ public class RequirePaymentTests
     /// beside the challenge.
     /// </summary>
     [TestMethod]
-    public async Task AnUnknownSettlementReturnsItsReceiptWithTheChallenge()
+    public async Task TestUAnUnknownSettlementReturnsItsReceiptWithTheChallenge()
     {
         HttpResponseMessage response = await PayAsync(new PaymentResponseEnvelope
         {
@@ -117,7 +117,7 @@ public class RequirePaymentTests
     /// refused, and the facilitator settles against the endpoint's requirement, not the echo.
     /// </summary>
     [TestMethod]
-    public async Task TheIssuerComesFromTheServersRequirement()
+    public async Task TestUTheIssuerComesFromTheServersRequirement()
     {
         RecordingFacilitator facilitator = new();
         PaymentRequirement charged = Usd();
@@ -132,7 +132,7 @@ public class RequirePaymentTests
     }
 
     [TestMethod]
-    public async Task AnotherInvoiceIsRefused()
+    public async Task TestUAnotherInvoiceIsRefused()
     {
         RecordingFacilitator facilitator = new();
         PaymentRequirement accepted = Usd();
@@ -146,7 +146,7 @@ public class RequirePaymentTests
 
     /// <summary>Currency codes are case-sensitive on the ledger: usd is not USD.</summary>
     [TestMethod]
-    public async Task TheAssetIsComparedExactly()
+    public async Task TestUTheAssetIsComparedExactly()
     {
         RecordingFacilitator facilitator = new();
 
@@ -157,7 +157,7 @@ public class RequirePaymentTests
     }
 
     [TestMethod]
-    public async Task AFailedSettlementReturnsTheChallengeOnly()
+    public async Task TestUAFailedSettlementReturnsTheChallengeOnly()
     {
         HttpResponseMessage response = await PayAsync(new PaymentResponseEnvelope { Success = false, ErrorReason = "settlement_failed" });
 
