@@ -232,8 +232,8 @@ If you're using the XRP Ledger in production, you should run a [rippled server](
 The `XrplCSharp` library is licensed under the Apache License 2.0. See [LICENSE] for more information.
 
 
-[CONTRIBUTING.md]: CONTRIBUTING.md
-[LICENSE]: LICENSE
+[CONTRIBUTING.md]: https://github.com/StaticBit-io/XrplCSharp/blob/dev/CONTRIBUTING.md
+[LICENSE]: https://github.com/StaticBit-io/XrplCSharp/blob/dev/LICENSE
 
 ## Repository Credit
 

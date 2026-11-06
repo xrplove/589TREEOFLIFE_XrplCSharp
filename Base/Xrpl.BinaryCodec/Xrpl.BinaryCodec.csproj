@@ -14,12 +14,16 @@
     <PackageProjectUrl>https://github.com/StaticBit-io/XrplCSharp</PackageProjectUrl>
     <Title>XrplCSharp</Title>
     <PackageVersion>11.25.1.0</PackageVersion>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <PropertyGroup>
     <WarningLevel>4</WarningLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Xrpl.BinaryCodec.Test" />
   </ItemGroup>

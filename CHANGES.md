@@ -1,5 +1,9 @@
 # Changes
 
+## Unreleased
+
+* `Xrpl`, `Xrpl.AddressCodec`, `Xrpl.BinaryCodec` and `Xrpl.Keypairs` carry a readme (`PackageReadmeFile`): `Xrpl` packs the repository `README.md`, and each base package has its own `README.md` in `Base/`. The `CONTRIBUTING.md` and `LICENSE` links of the repository `README.md` are absolute, so they also work on nuget.org.
+
 ## 11.25.1.0 06/11/2026
 
 * The `B58` change of 11.25.0.0 reaches those who install `Xrpl`. `Xrpl` 11.25.0 requires `Xrpl.BinaryCodec` and `Xrpl.Keypairs` 11.22.0, and both of those require `Xrpl.AddressCodec` 11.20.0, so `Xrpl.AddressCodec` 11.25.0 was installed only by asking for it directly. `Xrpl`, `Xrpl.AddressCodec`, `Xrpl.BinaryCodec` and `Xrpl.Keypairs` are all 11.25.1.0, and each requires the others at that version. No code changed
