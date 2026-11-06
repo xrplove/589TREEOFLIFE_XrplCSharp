@@ -256,6 +256,8 @@ SignatureResult final       = root.Sign(Reparse(signer2Part.TxBlob));
 
 Per rippled `Transactor::calculateBaseFee`, a **single-signed** `SponsorSignature` adds nothing to the base fee. Only when the sponsor co-signs with **multisig** does each signer nested in `SponsorSignature.Signers` add one base fee unit. The SDK's `Autofill` accounts for this automatically.
 
+`GetFeePayer` says who was charged. `tx.GetFeePayer()` reads the transaction alone: the sponsor when `SponsorFlags` has `spfSponsorFee`, otherwise the `Delegate`, otherwise the `Account`. `tx.GetFeePayer(meta)` also reads the metadata and returns `null` when the fee came out of the prepaid `FeeAmount` of a `Sponsorship` object, because then no account's balance carries it. An existing `Sponsorship` object is preferred over the sponsor's account even when the sponsor co-signed.
+
 ---
 
 ## Ledger Objects
@@ -263,6 +265,7 @@ Per rippled `Transactor::calculateBaseFee`, a **single-signed** `SponsorSignatur
 - `LOSponsorship` — the relationship object (see [Key Concepts](#key-concepts))
 - `LOAccountRoot.SponsoredOwnerCount` / `SponsoringOwnerCount` / `SponsoringAccountCount`
 - `LORippleState.HighSponsor` / `LowSponsor`
+- `BaseLedgerEntry.Sponsor` — the sponsor of the reserve of any other entry, including an `AccountRoot` created with `tfSponsorCreatedAccount`, where it is the payment's `Account`
 
 ---
 

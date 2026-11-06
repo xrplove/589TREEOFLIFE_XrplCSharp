@@ -272,6 +272,42 @@ public class TestISponsorship
     }
 
     /// <summary>
+    /// A sponsorship with a fee budget pays from the object: the sponsor's balance does not move.
+    /// </summary>
+    [TestMethod]
+    public async Task FeePayer_PrepaidSponsorship_NoAccountPays()
+    {
+        var (sponsor, sponsee, destination) = await SetupSponsorshipAsync();
+
+        Payment payment = await client.Autofill(SponsoredPayment(sponsee, destination, sponsor));
+        TransactionSummary result = await client.SubmitAndWait(payment, sponsee, true);
+        ValidateResult(result);
+
+        Assert.AreEqual(sponsor.ClassicAddress, result.Transaction.GetFeePayer());
+        Assert.IsNull(result.Transaction.GetFeePayer(result.Meta));
+    }
+
+    /// <summary>
+    /// With no Sponsorship object between the two, the co-signing sponsor pays from its account.
+    /// </summary>
+    [TestMethod]
+    public async Task FeePayer_CoSignedWithoutASponsorship_TheSponsorPays()
+    {
+        // This one carries a SponsorSignature; the SponsorshipSet tests in this class do not
+        await AmendmentGuard.RequireRoleSignaturesAsync(client);
+
+        XrplWallet sponsor = XrplWallet.Generate();
+        XrplWallet sponsee = XrplWallet.Generate();
+        XrplWallet destination = XrplWallet.Generate();
+        await IntegrationTestConfig.TryFundWalletsAsync(client, nodeType, sponsor, sponsee, destination);
+
+        TransactionSummary result = await client.SubmitAndWaitSponsored(SponsoredPayment(sponsee, destination, sponsor), sponsee, sponsor);
+        ValidateResult(result);
+
+        Assert.AreEqual(sponsor.ClassicAddress, result.Transaction.GetFeePayer(result.Meta));
+    }
+
+    /// <summary>
     /// Unified API (#43): the ledger pre-check fails fast when the sponsorship
     /// requires the sponsor's co-signature and it is missing.
     /// </summary>

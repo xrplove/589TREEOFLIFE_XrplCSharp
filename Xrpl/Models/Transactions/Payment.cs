@@ -44,7 +44,8 @@ namespace Xrpl.Models.Transactions
         tfLimitQuality = 262144,
 
         /// <summary>
-        /// The sponsor covers the reserve of an account this payment creates (XLS-68).
+        /// The payment's <c>Account</c> sponsors the reserve of the account this payment creates
+        /// (XLS-68); the new account's <c>Sponsor</c> names it, not the transaction's <c>Sponsor</c>.
         /// </summary>
         /// <remarks>
         /// rippled declares it in the Payment block of TxFlags.h as 0x00080000. The rest of

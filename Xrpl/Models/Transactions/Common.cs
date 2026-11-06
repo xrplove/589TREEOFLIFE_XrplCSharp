@@ -406,9 +406,33 @@ namespace Xrpl.Models.Transactions
         public string SigningPublicKey { get; set; }
         /// <inheritdoc />
         public List<SignerWrapper> Signers { get; set; }
+        private TransactionType _transactionType;
+        private string _unknownTransactionType;
+
         /// <inheritdoc />
-        [JsonConverter(typeof(TransactionTypeConverter))]
-        public TransactionType TransactionType { get; set; }
+        [JsonIgnore]
+        public TransactionType TransactionType
+        {
+            get => _transactionType;
+            set
+            {
+                _transactionType = value;
+                _unknownTransactionType = null;
+            }
+        }
+
+        /// <inheritdoc />
+        [JsonPropertyName("TransactionType")]
+        [JsonConverter(typeof(TransactionTypeNameConverter))]
+        public string TransactionTypeName
+        {
+            get => _unknownTransactionType ?? _transactionType.ToString();
+            set
+            {
+                _transactionType = TransactionTypeConverter.Parse(value);
+                _unknownTransactionType = _transactionType == TransactionType.Unknown ? value : null;
+            }
+        }
 
         /// <inheritdoc />
         [JsonPropertyName("TxnSignature")]
@@ -738,6 +762,15 @@ namespace Xrpl.Models.Transactions
         TransactionType TransactionType { get; set; }
 
         /// <summary>
+        /// The name of the transaction's type: the JSON form of <see cref="TransactionType"/>.
+        /// For a type this SDK does not know, where <see cref="TransactionType"/> is
+        /// <see cref="Xrpl.Models.TransactionType.Unknown"/>, this is the name the node sent, and
+        /// the transaction writes that name back to JSON.
+        /// </summary>
+        [JsonIgnore]
+        string TransactionTypeName { get; }
+
+        /// <summary>
         /// (Optional) Arbitrary integer used to identify the reason for this payment, or a sender on whose behalf this transaction is made.<br/>
         /// Conventionally, a refund should specify the initial payment's SourceTag as the refund payment's DestinationTag.
         /// </summary>
@@ -860,9 +893,33 @@ namespace Xrpl.Models.Transactions
         /// <inheritdoc/>
         public List<SignerWrapper> Signers { get; set; }
 
+        private TransactionType _transactionType;
+        private string _unknownTransactionType;
+
         /// <inheritdoc/>
-        [JsonConverter(typeof(TransactionTypeConverter))]
-        public TransactionType TransactionType { get; set; }
+        [JsonIgnore]
+        public TransactionType TransactionType
+        {
+            get => _transactionType;
+            set
+            {
+                _transactionType = value;
+                _unknownTransactionType = null;
+            }
+        }
+
+        /// <inheritdoc/>
+        [JsonPropertyName("TransactionType")]
+        [JsonConverter(typeof(TransactionTypeNameConverter))]
+        public string TransactionTypeName
+        {
+            get => _unknownTransactionType ?? _transactionType.ToString();
+            set
+            {
+                _transactionType = TransactionTypeConverter.Parse(value);
+                _unknownTransactionType = _transactionType == TransactionType.Unknown ? value : null;
+            }
+        }
 
         /// <inheritdoc/>
         [JsonPropertyName("TxnSignature")]
@@ -1004,12 +1061,39 @@ namespace Xrpl.Models.Transactions
     /// </summary>
     public abstract class NodeBase
     {
+        private LedgerEntryType _ledgerEntryType;
+        private string _unknownLedgerEntryType;
+
         /// <summary>
         /// Type of entry in the ledger
         /// </summary>
+        [JsonIgnore]
+        public LedgerEntryType LedgerEntryType
+        {
+            get => _ledgerEntryType;
+            set
+            {
+                _ledgerEntryType = value;
+                _unknownLedgerEntryType = null;
+            }
+        }
+
+        /// <summary>
+        /// The name of the entry's type: the JSON form of <see cref="LedgerEntryType"/>. For a type
+        /// this SDK does not know, where <see cref="LedgerEntryType"/> is
+        /// <see cref="Xrpl.Models.LedgerEntryType.Unknown"/>, this is the name the node sent.
+        /// </summary>
         [JsonPropertyName("LedgerEntryType")]
-        [JsonConverter(typeof(LedgerEntryTypeConverter))]
-        public LedgerEntryType LedgerEntryType { get; set; }
+        [JsonConverter(typeof(LedgerEntryTypeNameConverter))]
+        public string LedgerEntryTypeName
+        {
+            get => _unknownLedgerEntryType ?? _ledgerEntryType.ToString();
+            set
+            {
+                _ledgerEntryType = LedgerEntryTypeConverter.Parse(value);
+                _unknownLedgerEntryType = _ledgerEntryType == LedgerEntryType.Unknown ? value : null;
+            }
+        }
 
         /// <summary>
         /// Identifier of this object in the ledger's state tree

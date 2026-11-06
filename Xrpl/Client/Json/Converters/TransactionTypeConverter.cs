@@ -14,15 +14,18 @@ namespace Xrpl.Client.Json.Converters
     /// </summary>
     public class TransactionTypeConverter : JsonConverter<TransactionType>
     {
+        /// <summary>
+        /// The member for a type name, <see cref="TransactionType.Unknown"/> for a name this SDK
+        /// does not know or for <see langword="null"/>.
+        /// </summary>
+        internal static TransactionType Parse(string name)
+            => Enum.TryParse(name, ignoreCase: true, out TransactionType result) ? result : TransactionType.Unknown;
+
         public override TransactionType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if (reader.TokenType == JsonTokenType.String)
             {
-                string value = reader.GetString()!;
-                if (Enum.TryParse<TransactionType>(value, ignoreCase: true, out TransactionType result))
-                    return result;
-
-                return TransactionType.Unknown;
+                return Parse(reader.GetString());
             }
 
             if (reader.TokenType == JsonTokenType.Number)
@@ -40,6 +43,29 @@ namespace Xrpl.Client.Json.Converters
         public override void Write(Utf8JsonWriter writer, TransactionType value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToString());
+        }
+    }
+
+    /// <summary>
+    /// Reads the <c>TransactionType</c> field into its name, by the rules of
+    /// <see cref="TransactionTypeConverter"/> for everything but a string: a number becomes the
+    /// member's name, and a JSON null or any other token raises <see cref="JsonException"/>.
+    /// </summary>
+    public class TransactionTypeNameConverter : JsonConverter<string>
+    {
+        private static readonly TransactionTypeConverter TypeConverter = new TransactionTypeConverter();
+
+        /// <inheritdoc />
+        public override bool HandleNull => true;
+
+        public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.TokenType == JsonTokenType.String
+                ? reader.GetString()
+                : TypeConverter.Read(ref reader, typeof(TransactionType), options).ToString();
+
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value);
         }
     }
 }

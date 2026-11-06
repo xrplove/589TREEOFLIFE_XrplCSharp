@@ -517,7 +517,7 @@ public class TestISponsoredTypes
 
     /// <summary>
     /// A sponsored Payment funding a brand-new account with tfSponsorCreatedAccount: the
-    /// sponsor covers the new account's reserve.
+    /// payment's sender, not the transaction's Sponsor, sponsors the new account's reserve.
     /// </summary>
     [TestMethod]
     public async Task Sponsored_Payment_SponsorCreatedAccount()
@@ -535,6 +535,7 @@ public class TestISponsoredTypes
 
         AccountInfo info = await client.AccountInfo(new AccountInfoRequest(created.ClassicAddress)).Typed();
         Assert.IsNotNull(info.AccountData, "the sponsored payment must create the destination account");
+        Assert.AreEqual(sponsee.ClassicAddress, info.AccountData.Sponsor, "the new account must name the payment's sender as the sponsor of its reserve");
     }
 
     /// <summary>

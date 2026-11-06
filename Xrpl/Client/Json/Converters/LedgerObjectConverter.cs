@@ -11,23 +11,11 @@ namespace Xrpl.Client.Json.Converters;
 
 public abstract class NodeConverterBase<TNode> : JsonConverter<TNode> where TNode : NodeBase, new()
 {
-    protected static LedgerEntryType ReadLedgerEntryType(JsonElement root, JsonSerializerOptions options)
-    {
-        if (!root.TryGetProperty("LedgerEntryType", out JsonElement token))
-            return LedgerEntryType.Unknown;
-
-        string typeStr = token.GetString();
-        if (Enum.TryParse<LedgerEntryType>(typeStr, ignoreCase: true, out LedgerEntryType result))
-            return result;
-
-        return LedgerEntryType.Unknown;
-    }
-
     protected static TNode CreateBaseNode(JsonElement root, JsonSerializerOptions options)
     {
         return new TNode
         {
-            LedgerEntryType = ReadLedgerEntryType(root, options),
+            LedgerEntryTypeName = root.TryGetProperty("LedgerEntryType", out JsonElement type) ? type.GetString() : null,
             LedgerIndex = root.TryGetProperty("LedgerIndex", out JsonElement li) ? li.GetString() ?? string.Empty : string.Empty,
         };
     }
@@ -63,7 +51,7 @@ public class ModifiedNodeConverter : NodeConverterBase<ModifiedNode>
         if (value is null) { writer.WriteNullValue(); return; }
 
         writer.WriteStartObject();
-        writer.WriteString("LedgerEntryType", value.LedgerEntryType.ToString());
+        writer.WriteString("LedgerEntryType", value.LedgerEntryTypeName);
         if (!string.IsNullOrWhiteSpace(value.LedgerIndex))
             writer.WriteString("LedgerIndex", value.LedgerIndex);
 
@@ -108,7 +96,7 @@ public class CreatedNodeConverter : NodeConverterBase<CreatedNode>
         if (value is null) { writer.WriteNullValue(); return; }
 
         writer.WriteStartObject();
-        writer.WriteString("LedgerEntryType", value.LedgerEntryType.ToString());
+        writer.WriteString("LedgerEntryType", value.LedgerEntryTypeName);
         if (!string.IsNullOrWhiteSpace(value.LedgerIndex))
             writer.WriteString("LedgerIndex", value.LedgerIndex);
 
@@ -149,7 +137,7 @@ public class DeletedNodeConverter : NodeConverterBase<DeletedNode>
         if (value is null) { writer.WriteNullValue(); return; }
 
         writer.WriteStartObject();
-        writer.WriteString("LedgerEntryType", value.LedgerEntryType.ToString());
+        writer.WriteString("LedgerEntryType", value.LedgerEntryTypeName);
         if (!string.IsNullOrWhiteSpace(value.LedgerIndex))
             writer.WriteString("LedgerIndex", value.LedgerIndex);
 
@@ -327,14 +315,7 @@ public class LOConverter : JsonConverter<BaseLedgerEntry>
             ? letEl.GetString()
             : null;
 
-        // TryParse writes default(LedgerEntryType) — which is AccountRoot — on failure, so an
-        // unrecognized type must be mapped back to Unknown explicitly instead of being read as an
-        // account root with every field silently dropped.
-        LedgerEntryType entryType = LedgerEntryType.Unknown;
-        if (ledgerEntryType != null && !Enum.TryParse(ledgerEntryType, ignoreCase: true, out entryType))
-            entryType = LedgerEntryType.Unknown;
-
-        return GetTypeForLedgerEntry(entryType);
+        return GetTypeForLedgerEntry(LedgerEntryTypeConverter.Parse(ledgerEntryType));
     }
 
     /// <summary> read <see cref="BaseLedgerEntry"/>  from json object </summary>

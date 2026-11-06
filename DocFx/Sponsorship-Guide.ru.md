@@ -256,6 +256,8 @@ SignatureResult final       = root.Sign(Reparse(signer2Part.TxBlob));
 
 По rippled `Transactor::calculateBaseFee` **одиночная** `SponsorSignature` не добавляет к базовой комиссии ничего. Надбавка возникает только при **мультисиге** спонсора: каждый подписант, вложенный в `SponsorSignature.Signers`, добавляет одну базовую комиссию. `Autofill` SDK учитывает это автоматически.
 
+`GetFeePayer` показывает, с кого списана комиссия. `tx.GetFeePayer()` читает только транзакцию: спонсор, если в `SponsorFlags` есть `spfSponsorFee`, иначе `Delegate`, иначе `Account`. `tx.GetFeePayer(meta)` читает ещё и метаданные и возвращает `null`, если комиссия списана с предоплаченного `FeeAmount` объекта `Sponsorship`: тогда она не отражается на балансе ни одного счёта. Существующий объект `Sponsorship` имеет приоритет над счётом спонсора, даже если спонсор поставил подпись.
+
 ---
 
 ## Объекты леджера
@@ -263,6 +265,7 @@ SignatureResult final       = root.Sign(Reparse(signer2Part.TxBlob));
 - `LOSponsorship` — объект отношения (см. [Ключевые понятия](#ключевые-понятия))
 - `LOAccountRoot.SponsoredOwnerCount` / `SponsoringOwnerCount` / `SponsoringAccountCount`
 - `LORippleState.HighSponsor` / `LowSponsor`
+- `BaseLedgerEntry.Sponsor` — спонсор резерва любого другого объекта, включая `AccountRoot`, созданный с `tfSponsorCreatedAccount`: там это `Account` платежа
 
 ---
 
