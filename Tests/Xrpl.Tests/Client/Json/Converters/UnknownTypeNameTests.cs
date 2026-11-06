@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -146,6 +147,15 @@ public class TestUUnknownTypeName
         JsonNode written = JsonNode.Parse(JsonSerializer.Serialize(held, Options));
 
         Assert.IsNull(written["TransactionTypeName"]);
+    }
+
+    [TestMethod]
+    public void TransactionTypeName_HasADefault_SoAnImplementationOutsideTheSdkStillCompiles()
+    {
+        // StaticBit.XrplHelper's tests hold a bare ITransactionCommon; an abstract member broke them.
+        PropertyInfo property = typeof(ITransactionCommon).GetProperty(nameof(ITransactionCommon.TransactionTypeName));
+
+        Assert.IsFalse(property.GetMethod.IsAbstract);
     }
 
     [TestMethod]

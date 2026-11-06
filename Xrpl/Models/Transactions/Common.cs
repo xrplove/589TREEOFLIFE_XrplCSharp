@@ -768,7 +768,7 @@ namespace Xrpl.Models.Transactions
         /// the transaction writes that name back to JSON.
         /// </summary>
         [JsonIgnore]
-        string TransactionTypeName { get; }
+        string TransactionTypeName => TransactionType.ToString();
 
         /// <summary>
         /// (Optional) Arbitrary integer used to identify the reason for this payment, or a sender on whose behalf this transaction is made.<br/>
