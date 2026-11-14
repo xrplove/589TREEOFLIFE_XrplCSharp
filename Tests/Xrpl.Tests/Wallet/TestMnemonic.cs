@@ -67,7 +67,7 @@ public class TestUMnemonic
     {
         string mnemonic = "draw attack antique swing base employ blur above palace lucky glide clap pen use illegal";
 
-        Helper.ThrowsException<ArgumentException>(() => XrplWallet.FromMnemonic(mnemonic, null, null, "rfc1751", "ed25519"), "Expected an RFC1751 word, but received 'attack'.");
+        Helper.ThrowsException<ArgumentException>(() => XrplWallet.FromMnemonic(mnemonic, null, null, "rfc1751", "ed25519"), "Word 2 is not an RFC1751 word.");
     }
 
     [TestMethod]

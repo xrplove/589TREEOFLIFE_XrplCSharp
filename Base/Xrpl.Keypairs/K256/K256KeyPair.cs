@@ -1,39 +1,41 @@
-using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.Sec;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Crypto.Signers;
-using Org.BouncyCastle.Math;
-using Xrpl.Keypairs.Utils;
+using System;
+
 using static Xrpl.AddressCodec.Utils;
 
 namespace Xrpl.Keypairs.K256
 {
-    using ECDSASigner = Org.BouncyCastle.Crypto.Signers.ECDsaSigner;
-    using ECPoint = Org.BouncyCastle.Math.EC.ECPoint;
-    using ECPrivateKeyParameters = Org.BouncyCastle.Crypto.Parameters.ECPrivateKeyParameters;
-    using HMacDsaKCalculator = Org.BouncyCastle.Crypto.Signers.HMacDsaKCalculator;
-    using Sha256Digest = Org.BouncyCastle.Crypto.Digests.Sha256Digest;
-
+    /// <summary>A secp256k1 key pair whose private key is a 32-byte scalar.</summary>
     public class K256KeyPair : IXrplKeyPair
     {
-        private readonly BigInteger _privKey;
+        private readonly byte[] _privKey;
         private bool _isNodeKey;
 
-        public K256KeyPair(BigInteger priv, bool nodeKey = false)
+        /// <summary>Wraps a private key.</summary>
+        /// <param name="priv">
+        /// The scalar, unsigned big-endian: 32 bytes, fewer when leading zeros were dropped, or more
+        /// with leading zeros (the 33-byte XRPL form with the 00 prefix).
+        /// </param>
+        /// <param name="nodeKey">Whether this is the root key of a family, as a validator uses.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="priv"/> is null.</exception>
+        /// <exception cref="ArgumentException">The key is zero or not below the curve order.</exception>
+        public K256KeyPair(byte[] priv, bool nodeKey = false)
         {
-            _privKey = priv;
+            if (priv == null)
+                throw new ArgumentNullException(nameof(priv));
+            _privKey = K256SecretKey.ToScalar(priv);
             _isNodeKey = nodeKey;
         }
 
+        /// <summary>The 33-byte compressed public key, as upper-case hex.</summary>
         public string Id()
         {
-            return K256KeyGenerator.ComputePublicKey(this._privKey).GetEncoded(true).ToHex();
+            return K256SecretKey.PublicKey(_privKey).ToHex();
         }
 
+        /// <summary>The private key in the XRPL form: 00 followed by the 32-byte scalar, as upper-case hex.</summary>
         public string Pk()
         {
-            // Always 33 bytes: a key with leading zero bytes is still written as 32, as xrpl.js does.
-            return $"00{_privKey.ToByteArrayUnsigned().ToHex().PadLeft(64, '0')}";
+            return $"00{_privKey.ToHex()}";
         }
 
         /// <summary>Signs the SHA-512Half of <paramref name="message"/>, with a canonical (low) S.</summary>
@@ -42,31 +44,34 @@ namespace Xrpl.Keypairs.K256
         /// The private key, unsigned big-endian: the 33-byte form with the 00 prefix or the raw 32 bytes.
         /// It is read as unsigned, so a raw key whose first byte is 0x80 or above is not taken as negative.
         /// </param>
+        /// <returns>The DER-encoded signature (RFC 6979 nonce).</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> or <paramref name="privateKey"/> is null.</exception>
+        /// <exception cref="ArgumentException">The key is zero or not below the curve order.</exception>
         public static byte[] Sign(byte[] message, byte[] privateKey)
         {
-            ECDSASigner signer = new ECDSASigner(new HMacDsaKCalculator(new Sha256Digest()));
-            ECPrivateKeyParameters parameters = new ECPrivateKeyParameters("ECDSA", new BigInteger(1, privateKey), Secp256K1.Parameters());
-            signer.Init(true, parameters);
-            BigInteger[] sigs = signer.GenerateSignature(Sha512.Half(message));
-            var r = sigs[0];
-            var s = sigs[1];
-
-            var otherS = Secp256K1.Order().Subtract(s);
-            if (s.CompareTo(otherS) == 1)
-            {
-                s = otherS;
-            }
-
-            return new EcdsaSignature(r, s).EncodeToDer();
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            if (privateKey == null)
+                throw new ArgumentNullException(nameof(privateKey));
+            return K256SecretKey.Sign(message, privateKey);
         }
 
+        /// <summary>
+        /// Verifies a DER signature over the SHA-512Half of <paramref name="message"/>. A signature
+        /// with a high S verifies; whether it is canonical is <see cref="EcdsaSignature.IsStrictlyCanonical"/>.
+        /// </summary>
+        /// <param name="signature">The DER-encoded signature; anything else does not verify.</param>
+        /// <param name="message">The message bytes.</param>
+        /// <param name="publicKey">The public key, compressed (33 bytes) or uncompressed (65 bytes).</param>
+        /// <exception cref="ArgumentNullException"><paramref name="message"/> or <paramref name="publicKey"/> is null.</exception>
+        /// <exception cref="ArgumentException"><paramref name="publicKey"/> is not a point on the curve.</exception>
         public static bool Verify(byte[] signature, byte[] message, byte[] publicKey)
         {
-            ECDsaSigner verifier = new ECDsaSigner();
-            ECPublicKeyParameters parameters = new ECPublicKeyParameters(Secp256K1.Curve().DecodePoint(publicKey), Secp256K1.Parameters());
-            verifier.Init(false, parameters);
-            EcdsaSignature sig = EcdsaSignature.DecodeFromDer(signature);
-            return sig != null && verifier.VerifySignature(Sha512.Half(message), sig.R, sig.S);
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            if (publicKey == null)
+                throw new ArgumentNullException(nameof(publicKey));
+            return K256SecretKey.Verify(signature, message, publicKey);
         }
     }
 }

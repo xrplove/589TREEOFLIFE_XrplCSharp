@@ -1,6 +1,3 @@
-using Org.BouncyCastle.Ocsp;
-using Org.BouncyCastle.Utilities.Encoders;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -911,7 +908,7 @@ public class TestAccountBuilder
     internal static string ConvertStringToHex(string input)
     {
         var bytes = Encoding.UTF8.GetBytes(input);
-        return Hex.ToHexString(bytes).ToUpper();
+        return Xrpl.AddressCodec.Utils.ToHex(bytes);
     }
 
     private async Task CreateNFTOffersAsync(int i)

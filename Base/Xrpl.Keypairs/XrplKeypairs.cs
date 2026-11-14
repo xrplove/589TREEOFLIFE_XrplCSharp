@@ -2,7 +2,6 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 
-using Org.BouncyCastle.Math;
 
 using Xrpl.AddressCodec;
 using Xrpl.Keypairs.Ed25519;
@@ -108,9 +107,12 @@ namespace Xrpl.Keypairs
         /// </summary>
         /// <remarks>
         /// Every buffer this method allocates for key material, the Ed25519 expanded key included, is
-        /// cleared before it returns. Copies made beyond the SDK's reach are not: the secp256k1 path
-        /// hands the scalar to BouncyCastle as an immutable <c>BigInteger</c>, and hash
-        /// implementations keep their own state.
+        /// cleared before it returns. secp256k1 signs on NBitcoin.Secp256k1, a port of libsecp256k1:
+        /// the scalar and the RFC 6979 nonce are value types, cleared once the signature is made,
+        /// never a heap <c>BigInteger</c>. A secp256k1 scalar of zero is refused, so a buffer the
+        /// caller has already cleared (33 zero bytes, whose 0x00 prefix reads as secp256k1) never
+        /// signs. What stays outside the SDK's reach is the state the hash implementations keep,
+        /// including the HMAC-SHA256 that RFC 6979 runs.
         /// </remarks>
         /// <param name="message">The message bytes; for secp256k1 the SHA-512Half of it is signed.</param>
         /// <param name="privateKey">
@@ -139,16 +141,7 @@ namespace Xrpl.Keypairs
                 }
             }
 
-            byte[] scalar = privateKey.ToArray();
-            try
-            {
-                RequireSecp256k1Scalar(scalar);
-                return K256KeyPair.Sign(messageBytes, scalar);
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(scalar);
-            }
+            return K256SecretKey.Sign(messageBytes, privateKey.Slice(1));
         }
 
         /// <summary>
@@ -159,13 +152,13 @@ namespace Xrpl.Keypairs
         /// <exception cref="ArgumentException">The key is not 33 bytes, has an unknown prefix, or is a secp256k1 scalar of zero or not below the curve order.</exception>
         public static byte[] DerivePublicKey(ReadOnlySpan<byte> privateKey)
         {
-            bool ed25519 = IsEd25519PrivateKey(privateKey);
+            if (!IsEd25519PrivateKey(privateKey))
+                return K256SecretKey.PublicKey(privateKey.Slice(1));
+
             byte[] keyBytes = privateKey.Slice(1).ToArray();
             try
             {
-                if (ed25519)
-                    return Ed25519PublicKey(keyBytes);
-                return K256KeyGenerator.ComputePublicKey(RequireSecp256k1Scalar(keyBytes)).GetEncoded(true);
+                return Ed25519PublicKey(keyBytes);
             }
             finally
             {
@@ -212,19 +205,9 @@ namespace Xrpl.Keypairs
                 if (string.Equals(algorithm, "secp256k1", StringComparison.Ordinal))
                 {
                     // Account key 0 of the seed's family, as DeriveKeypair derives it for a non-validator.
-                    BigInteger privateGen = K256KeyGenerator.ComputePrivateGen(seed);
-                    BigInteger secret = K256KeyGenerator.ComputeSecretKey(privateGen, 0);
-                    byte[] magnitude = secret.ToByteArrayUnsigned();
-                    try
-                    {
-                        byte[] privateKey = new byte[33];
-                        Buffer.BlockCopy(magnitude, 0, privateKey, 33 - magnitude.Length, magnitude.Length);
-                        return (privateKey, K256KeyGenerator.ComputePublicKey(secret).GetEncoded(true));
-                    }
-                    finally
-                    {
-                        CryptographicOperations.ZeroMemory(magnitude);
-                    }
+                    byte[] privateKey = new byte[33];
+                    byte[] publicKey = K256SecretKey.DeriveFamilyKey(seed, 0, privateKey.AsSpan(1));
+                    return (privateKey, publicKey);
                 }
 
                 throw new ArgumentException($"Unknown algorithm '{algorithm}'; expected ed25519 or secp256k1.", nameof(algorithm));
@@ -245,19 +228,6 @@ namespace Xrpl.Keypairs
                 0x00 => false,
                 _ => throw new ArgumentException("The private key must start with 0xED (Ed25519) or 0x00 (secp256k1).", nameof(privateKey)),
             };
-        }
-
-        /// <summary>
-        /// Refuses a secp256k1 scalar outside [1, n-1]. A buffer the caller has already cleared is
-        /// 33 zero bytes, whose 0x00 prefix reads as secp256k1; without this it would sign as d = 0
-        /// under a public key at infinity, and the node would only refuse it at submission.
-        /// </summary>
-        private static BigInteger RequireSecp256k1Scalar(byte[] key)
-        {
-            BigInteger d = new BigInteger(1, key);
-            if (d.SignValue <= 0 || d.CompareTo(Secp256K1.Order()) >= 0)
-                throw new ArgumentException("The secp256k1 private key is not a valid scalar: zero, or not below the curve order.", "privateKey");
-            return d;
         }
 
         private static byte[] Ed25519PublicKey(byte[] seed)
@@ -298,6 +268,15 @@ namespace Xrpl.Keypairs
         public static string DeriveAddress(string publicKey)
             => XrplKeypairs.DeriveAddressFromBytes(publicKey.FromHex());
 
+        /// <summary>
+        /// Derives the public key of a private key given as hex: <c>ED</c> and 32 bytes for
+        /// Ed25519, otherwise a secp256k1 scalar (the 33-byte <c>00</c>-prefixed form or the raw
+        /// 32 bytes of a BIP-39 key).
+        /// </summary>
+        /// <param name="privateKey">The private key, hex.</param>
+        /// <returns>The 33-byte public key, upper-case hex.</returns>
+        /// <exception cref="FormatException"><paramref name="privateKey"/> is not hex.</exception>
+        /// <exception cref="ArgumentException">A secp256k1 key is zero, not below the curve order, or longer than 32 significant bytes.</exception>
         public static string DerivePublicKeyFromPrivateKey(string privateKey)
         {
             byte[] keyBytes = privateKey.FromHex();
@@ -309,14 +288,9 @@ namespace Xrpl.Keypairs
                 return "ED" + expanded[32..64].ToHex();
             }
 
-            // XRPL secp256k1: "00" prefix (33 bytes, first byte = 0x00) - the prefix is stripped, leaving the 32-byte scalar
-            // BIP-39 secp256k1: the raw 32 bytes - straight into BigInteger
-            // The leading 1 is BigInteger's sign argument; the magnitude after it is unsigned.
-            var privKeyBigInt = keyBytes.Length == 33 && keyBytes[0] == 0x00
-                ? new BigInteger(1, keyBytes[1..])   // drop the "00" prefix
-                : new BigInteger(1, keyBytes);        // the raw 32 bytes
-
-            return K256KeyGenerator.ComputePublicKey(privKeyBigInt).GetEncoded(true).ToHex();
+            // secp256k1, read as an unsigned big-endian scalar: the XRPL form with its "00" prefix
+            // (33 bytes) and the raw 32 bytes of a BIP-39 key are the same number.
+            return K256SecretKey.PublicKey(keyBytes).ToHex();
         }
     }
 }

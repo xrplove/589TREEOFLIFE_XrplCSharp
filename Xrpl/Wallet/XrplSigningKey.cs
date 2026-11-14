@@ -23,9 +23,16 @@ namespace Xrpl.Wallet
     /// may outlive its use in swap, a hibernation file or a memory dump.
     /// </para>
     /// <para>
-    /// What stays outside the SDK's reach: secp256k1 signing builds the scalar as a BouncyCastle
-    /// <c>BigInteger</c>, whose backing array cannot be cleared, and hash implementations keep
-    /// state of their own. The public key and address are not secret and are kept as strings.
+    /// Both algorithms keep key material in buffers the SDK clears: secp256k1 signs on
+    /// NBitcoin.Secp256k1, whose scalar and RFC 6979 nonce are value types cleared after each
+    /// signature. The key itself sits in a pinned array, which the garbage collector never moves,
+    /// so no stale copy of it is left behind by compaction; it is cleared on dispose, and a key
+    /// that is never disposed stays in memory until the allocator reuses it. There is deliberately
+    /// no finalizer: once a signature has read the key field, the runtime may finalize the object
+    /// while the signature is still copying the key. What stays outside the SDK's reach is the
+    /// state hash implementations keep, the HMAC-SHA256 of RFC 6979 included, the short-lived
+    /// buffers of a single signature, and the operating system paging memory out to disk. The
+    /// public key and address are not secret and are kept as strings.
     /// </para>
     /// <para>
     /// Not safe for disposal concurrent with signing: dispose only once every signature has returned.
@@ -51,15 +58,18 @@ namespace Xrpl.Wallet
         /// </param>
         /// <exception cref="ArgumentException">The key is not 33 bytes, has an unknown prefix, or is a secp256k1 scalar of zero or not below the curve order.</exception>
         public XrplSigningKey(ReadOnlySpan<byte> privateKey, string? masterAddress = null)
-            : this(XrplKeypairs.DerivePublicKey(privateKey), privateKey.ToArray(), masterAddress)
+            : this(XrplKeypairs.DerivePublicKey(privateKey), privateKey, masterAddress)
         {
         }
 
-        // The public key comes first so that the key is validated before it is copied: arguments are
-        // evaluated left to right, and a copy made before a throw would be left on the heap uncleared.
-        private XrplSigningKey(byte[] publicKey, byte[] privateKey, string? masterAddress)
+        // The public key is derived first, so the key is validated before it is copied anywhere.
+        // The copy goes to the pinned object heap: a key lives as long as this object, survives
+        // collections, and an ordinary array would be moved by compaction, leaving earlier copies
+        // in memory that Dispose can no longer reach.
+        private XrplSigningKey(byte[] publicKey, ReadOnlySpan<byte> privateKey, string? masterAddress)
         {
-            _privateKey = privateKey;
+            _privateKey = GC.AllocateUninitializedArray<byte>(privateKey.Length, pinned: true);
+            privateKey.CopyTo(_privateKey);
             PublicKey = publicKey.ToHex();
             ClassicAddress = masterAddress ?? XrplKeypairs.DeriveAddressFromBytes(publicKey);
             _engine = new XrplWallet(PublicKey, ClassicAddress, SignMessage);
@@ -76,7 +86,14 @@ namespace Xrpl.Wallet
         public static XrplSigningKey FromEntropy(ReadOnlySpan<byte> entropy, string algorithm = XrplWallet.Ed25519, string? masterAddress = null)
         {
             (byte[] privateKey, byte[] publicKey) = XrplKeypairs.DeriveKeyBytes(entropy, algorithm);
-            return new XrplSigningKey(publicKey, privateKey, masterAddress);
+            try
+            {
+                return new XrplSigningKey(publicKey, privateKey, masterAddress);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(privateKey);
+            }
         }
 
         /// <summary>The public key, hex.</summary>
@@ -135,6 +152,9 @@ namespace Xrpl.Wallet
 
         /// <summary>The key buffer itself, so tests can see that <see cref="Dispose"/> cleared it.</summary>
         internal ReadOnlySpan<byte> KeyBuffer => _privateKey;
+
+        /// <summary>The key array, so tests can see that it was allocated pinned.</summary>
+        internal byte[] KeyArray => _privateKey;
 
         private string SignMessage(byte[] message)
         {

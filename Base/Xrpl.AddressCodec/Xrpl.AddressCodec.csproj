@@ -13,7 +13,7 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/StaticBit-io/XrplCSharp</PackageProjectUrl>
     <Title>XrplCSharp</Title>
-    <PackageVersion>11.26.0.0</PackageVersion>
+    <PackageVersion>11.27.0.0</PackageVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
@@ -25,7 +25,6 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
     <PackageReference Include="Chaos.NaCl.Standard" Version="1.0.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
   </ItemGroup>

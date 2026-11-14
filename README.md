@@ -60,7 +60,7 @@ The `Xrpl` library is available on [NuGet](https://www.nuget.org/packages/Xrpl/)
 dotnet add package Xrpl
 ```
 
-The library supports .NET 8, .NET 9, and .NET 10.
+The library targets .NET 10 and .NET 11. The base packages (`Xrpl.AddressCodec`, `Xrpl.BinaryCodec`, `Xrpl.Keypairs`) target .NET Standard 2.0 and 2.1.
 
 ## Features
 

@@ -1,7 +1,10 @@
 name: .NET CI
 
 env:
-  DOTNET_VERSION: '10.0.x'
+  # SDK 11 builds the net11.0 target; SDK 10 brings the runtime the net10.0 tests run on.
+  DOTNET_VERSION: |
+    10.0.x
+    11.0.x
 
 on:
   push:

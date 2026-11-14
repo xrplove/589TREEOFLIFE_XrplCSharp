@@ -5,7 +5,7 @@
 ### Requirements
 
 We use Visual Studio 2022+ or JetBrains Rider for development.
-You must have .NET 10 SDK installed. You can check your `dotnet` version with:
+You must have the .NET 11 SDK installed, which builds the `net11.0` target, and the .NET 10 runtime, which the test projects run on. You can check your `dotnet` version with:
 
 ```bash
 dotnet --version

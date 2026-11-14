@@ -58,6 +58,15 @@ namespace Xrpl.Models.Methods
         public string Seed { get; set; }
         /// <summary>
         /// <b>*** Do not send your secret to a server that you do not control or do not trust. ***</b><br/>
+        /// (Optional) The secret seed to use to sign the claim, in hexadecimal.<br/>
+        /// This must be the same key pair as the public key specified in the channel.<br/>
+        /// If provided, you must also specify the key_type.<br/>
+        /// Cannot be used with secret, seed, or passphrase.
+        /// </summary>
+        [JsonPropertyName("seed_hex")]
+        public string SeedHex { get; set; }
+        /// <summary>
+        /// <b>*** Do not send your secret to a server that you do not control or do not trust. ***</b><br/>
         /// (Optional) A string passphrase to use to sign the claim.<br/>
         /// This must be the same key pair as the public key specified in the channel.<br/>
         /// The key derived from this passphrase must match the public key specified in the channel.<br/>

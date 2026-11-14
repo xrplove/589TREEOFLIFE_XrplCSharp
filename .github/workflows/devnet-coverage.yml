@@ -41,7 +41,10 @@ on:
           FullyQualifiedName~TestIBatchInnerTypes|FullyQualifiedName~TestISponsoredTypes|FullyQualifiedName~TestISponsoredVaultLoan|FullyQualifiedName~TestIAMMMpt|FullyQualifiedName~TestIXChainAttestation|FullyQualifiedName~TestIXChainNegative|FullyQualifiedName~TestILoanMultisig|FullyQualifiedName~TestIXChainBridge|FullyQualifiedName~TestIBatch|FullyQualifiedName~TestISponsorship|FullyQualifiedName~TestILedgerStateFix
 
 env:
-  DOTNET_VERSION: '10.0.x'
+  # SDK 11 builds the net11.0 target; SDK 10 brings the runtime the net10.0 tests run on.
+  DOTNET_VERSION: |
+    10.0.x
+    11.0.x
 
 permissions:
   contents: read

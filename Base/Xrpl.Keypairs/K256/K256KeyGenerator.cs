@@ -1,91 +1,103 @@
 ﻿using System;
-using System.Diagnostics;
-using Org.BouncyCastle.Math;
-using Org.BouncyCastle.Math.EC;
-using Xrpl.Keypairs.Utils;
 
 namespace Xrpl.Keypairs.K256
 {
+    /// <summary>
+    /// Derives secp256k1 key families from a seed, as rippled does. Keys are 32-byte big-endian
+    /// scalars and public keys 33-byte compressed points. A null array throws
+    /// <see cref="ArgumentNullException"/>.
+    /// </summary>
     public class K256KeyGenerator
     {
         // See https://wiki.ripple.com/Account_Family
+        /// <summary>Derives key <paramref name="keyIndex"/> of the seed's family; -1 is the root key a validator uses.</summary>
+        /// <param name="seedBytes">The seed bytes, 16 for an XRPL seed.</param>
+        /// <param name="keyIndex">The account key index, or -1 for the root key.</param>
         public static K256KeyPair From128Seed(byte[] seedBytes, int keyIndex)
         {
-            // The private generator (aka root private key, master private key)
-            var privateGen = ComputePrivateGen(seedBytes);
-            if (keyIndex == -1)
+            if (seedBytes == null)
+                throw new ArgumentNullException(nameof(seedBytes));
+            byte[] privateKey = new byte[32];
+            try
             {
-                // The root keyPair
-                return new K256KeyPair(privateGen, true);
+                K256SecretKey.DeriveFamilyKey(seedBytes, keyIndex, privateKey);
+                return new K256KeyPair(privateKey, keyIndex == -1);
             }
-            var secret = ComputeSecretKey(privateGen, (uint)keyIndex);
-            return new K256KeyPair(secret);
+            finally
+            {
+                Array.Clear(privateKey, 0, privateKey.Length);
+            }
         }
 
-        public static BigInteger ComputePrivateGen(byte[] seedBytes)
+        /// <summary>The private generator (root private key) of a seed: a 32-byte scalar.</summary>
+        public static byte[] ComputePrivateGen(byte[] seedBytes)
         {
             return ComputeScalar(seedBytes, null);
         }
 
-        public static BigInteger ComputeSecretKey(BigInteger privateGen, uint accountNumber)
+        /// <summary>Account key <paramref name="accountNumber"/> of a family: a 32-byte scalar.</summary>
+        /// <param name="privateGen">The 32-byte private generator.</param>
+        /// <param name="accountNumber">The account key index.</param>
+        public static byte[] ComputeSecretKey(byte[] privateGen, uint accountNumber)
         {
-            ECPoint publicGen = ComputePublicGenerator(privateGen);
-            return ComputeScalar(publicGen.GetEncoded(true), accountNumber).Add(privateGen).Mod(Secp256K1.Order());
+            if (privateGen == null)
+                throw new ArgumentNullException(nameof(privateGen));
+            byte[] publicGen = ComputePublicGenerator(privateGen);
+            byte[] tweak = ComputeScalar(publicGen, accountNumber);
+            try
+            {
+                return K256SecretKey.AddScalar(privateGen, tweak);
+            }
+            finally
+            {
+                Array.Clear(tweak, 0, tweak.Length);
+            }
         }
 
         /// <summary>
-        /// 
+        /// The public generator (public root key) of a private generator: a 33-byte compressed point.
         /// </summary>
         /// <param name="privateGen"> secret scalar</param>
-        /// <returns> the corresponding public key is the public generator (aka public root key, master public key). </returns>
-        public static ECPoint ComputePublicGenerator(BigInteger privateGen)
+        public static byte[] ComputePublicGenerator(byte[] privateGen)
         {
             return ComputePublicKey(privateGen);
         }
 
+        /// <summary>
+        /// The public key of account key <paramref name="accountNumber"/>, derived from the public
+        /// generator alone: public generator + scalar·G.
+        /// </summary>
+        /// <returns>The 33-byte compressed public key.</returns>
         public static byte[] ComputePublicKey(byte[] publicGenBytes, uint accountNumber)
         {
-            ECPoint rootPubPoint = Secp256K1.Curve().DecodePoint(publicGenBytes);
-            BigInteger scalar = ComputeScalar(publicGenBytes, accountNumber);
-            ECPoint point = Secp256K1.BasePoint().Multiply(scalar);
-            ECPoint offset = rootPubPoint.Add(point);
-            return offset.GetEncoded(true);
+            if (publicGenBytes == null)
+                throw new ArgumentNullException(nameof(publicGenBytes));
+            byte[] scalar = ComputeScalar(publicGenBytes, accountNumber);
+            return K256SecretKey.AddToPublicKey(publicGenBytes, scalar);
         }
 
         /// <summary>
-        /// 
+        /// The first SHA-512Half of <paramref name="seedBytes"/> || [<paramref name="discriminator"/>] || i,
+        /// for i from 0, that lies in [1, n-1].
         /// </summary>
         /// <param name="seedBytes"> - a bytes sequence of arbitrary length which will be hashed </param>
         /// <param name="discriminator"> - nullable optional uint32 to hash </param>
-        /// <returns> a number between [1, order -1] suitable as a private key  </returns>
-        public static BigInteger ComputeScalar(byte[] seedBytes, uint? discriminator)
+        /// <returns>A 32-byte scalar suitable as a private key.</returns>
+        public static byte[] ComputeScalar(byte[] seedBytes, uint? discriminator)
         {
-            BigInteger key = null;
-            for (uint i = 0; i <= 0xFFFFFFFFL; i++)
-            {
-                var sha512 = new Sha512(seedBytes);
-                if (discriminator != null)
-                {
-                    sha512.AddU32(discriminator.Value);
-                }
-                sha512.AddU32(i);
-                byte[] keyBytes = sha512.Finish256();
-                key = Misc.UBigInt(keyBytes);
-                if (key.CompareTo(BigInteger.Zero) == 1 &&
-                    key.CompareTo(Secp256K1.Order()) == -1)
-                {
-                    break;
-                }
-            }
-            return key;
+            if (seedBytes == null)
+                throw new ArgumentNullException(nameof(seedBytes));
+            return K256SecretKey.ComputeScalar(seedBytes, discriminator);
         }
 
         /// <summary> Compute Public Key </summary>
-        /// <param name="secretKey"> secret point on the curve as BigInteger </param>
-        /// <returns> corresponding public point </returns>
-        public static ECPoint ComputePublicKey(BigInteger secretKey)
+        /// <param name="secretKey">The 32-byte private key.</param>
+        /// <returns>The 33-byte compressed public key.</returns>
+        public static byte[] ComputePublicKey(byte[] secretKey)
         {
-            return Secp256K1.BasePoint().Multiply(secretKey);
+            if (secretKey == null)
+                throw new ArgumentNullException(nameof(secretKey));
+            return K256SecretKey.PublicKey(secretKey);
         }
     }
 }

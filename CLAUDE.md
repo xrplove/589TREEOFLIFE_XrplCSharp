@@ -7,12 +7,12 @@ Repository: [github.com/StaticBit-io/XrplCSharp](https://github.com/StaticBit-io
 
 ## Technology Stack
 
-- **.NET 8 / 9 / 10** — multi-target (`net8.0;net9.0;net10.0` for main library)
+- **.NET 10 / 11** — multi-target (`net10.0;net11.0` for the main library and both X402 packages); `net8.0` and `net9.0` were dropped in 11.27.0.0 at their end of support. CI installs SDKs 10 and 11, since 11 builds the `net11.0` target and the test projects run on `net10.0`
 - **C# latest** — `<LangVersion>latest</LangVersion>` in main Xrpl project
 - Base libraries target **netstandard2.0** (AddressCodec, BinaryCodec) and **netstandard2.1** (Keypairs)
 - **System.Text.Json** — JSON serialization in client code
-- **NBitcoin** 8.0.13 — Bitcoin/crypto primitives
-- **Portable.BouncyCastle** 1.9.0 — cryptographic operations
+- **NBitcoin** 10.0.21 — BIP-39 mnemonics and BIP-32 derivation in `XrplWallet`
+- **NBitcoin.Secp256k1** 4.0.4 — all secp256k1 work in `Xrpl.Keypairs` (`K256SecretKey`: signing, verification, key derivation), a libsecp256k1 port whose scalar and nonce are clearable value types. Do not reference its types from the `Xrpl` project: `NBitcoin` compiles the same namespace into its own assembly. The repository dropped BouncyCastle in 11.27.0.0, after checking the port byte for byte against it
 - **Chaos.NaCl.Standard** 1.0.0 — Ed25519 operations
 - **MSTest** — test framework
 - **Flurl.Http** — HTTP client in tests
@@ -28,7 +28,7 @@ XrplCSharp/
 │   ├── Xrpl.BinaryCodec/            # XRPL binary serialization format (netstandard2.0)
 │   └── Xrpl.Keypairs/               # Ed25519/secp256k1 key generation and signing (netstandard2.1)
 │
-├── Xrpl/                             # Main SDK library (net8.0;net9.0;net10.0)
+├── Xrpl/                             # Main SDK library (net10.0;net11.0)
 │   ├── Client/                       # XrplClient — WebSocket client to rippled
 │   │   ├── IXrplClient.cs           # Main interface for consumers
 │   │   ├── XrplClient.cs            # WebSocket connection, RPC methods, subscriptions
@@ -55,7 +55,7 @@ XrplCSharp/
 │       └── Blazor-WebAssembly/     # Blazor WASM demo app
 │
 ├── Tools/
-│   └── GenerateEnums/              # Code generator for XRPL enums from rippled definitions (net8.0)
+│   └── GenerateEnums/              # Code generator for XRPL enums from rippled definitions (net10.0)
 │
 ├── DocFx/                           # Documentation generator config
 ├── docs/                            # Generated HTML documentation
@@ -124,7 +124,7 @@ Xrpl (main NuGet package)
 
 ### Prerequisites
 
-- .NET 10 SDK (for development)
+- .NET 11 SDK (builds the `net11.0` target) and the .NET 10 runtime (the test projects run on `net10.0`)
 - Docker + Docker Compose (for integration tests)
 
 ### Build

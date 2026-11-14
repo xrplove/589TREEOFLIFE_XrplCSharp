@@ -108,7 +108,8 @@ namespace Xrpl.AddressCodec
                 }
                 if (digit58 < 0)
                 {
-                    throw new EncodingFormatException("Illegal character " + c + " at " + i);
+                    // The index only: the input may be a seed, and the character is part of it.
+                    throw new EncodingFormatException("Illegal base58 character at index " + i);
                 }
 
                 input58[i] = (byte)digit58;

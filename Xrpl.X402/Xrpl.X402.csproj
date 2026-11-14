@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -10,7 +10,7 @@
     <Title>Xrpl.X402</Title>
     <Description>x402 (HTTP 402) agentic payments client for the XRP Ledger (XRPL exact scheme). Detects HTTP 402 challenges, builds and locally signs an XRPL Payment (XRP or RLUSD/IOU), and retries with a PAYMENT-SIGNATURE header. Verified live against the t54 facilitator.</Description>
     <PackageId>Xrpl.X402</PackageId>
-    <PackageVersion>1.0.3</PackageVersion>
+    <PackageVersion>1.1.0</PackageVersion>
     <NeutralLanguage>en-US</NeutralLanguage>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/StaticBit-io/XrplCSharp</PackageProjectUrl>

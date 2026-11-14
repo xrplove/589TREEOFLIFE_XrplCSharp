@@ -297,6 +297,18 @@ namespace Xrpl.Client
         /// Applied to the serialized JSON rather than to the request object so that the credentials
         /// never end up in the request instance that error messages are built from.
         /// </remarks>
+        // The command and id only, never the body: a request can carry a secret or seed
+        // (channel_authorize), and an exception message ends up in logs and crash reports.
+        private static string TimeoutMessage(object request, Guid id)
+        {
+            string? command = request switch
+            {
+                IDictionary<string, object> dictionary when dictionary.TryGetValue("command", out object? value) => value?.ToString(),
+                _ => request?.GetType().GetProperty("Command")?.GetValue(request) as string,
+            };
+            return $"Timeout for request '{command ?? "unknown"}' with id {id}";
+        }
+
         private static string ApplyAdminCredentials(string json, AdminCredentials? credentials)
         {
             if (credentials is null)
@@ -382,7 +394,7 @@ namespace Xrpl.Client
                 {
                     try
                     {
-                        this.RejectOwned(newId, taskInfo, new TimeoutException($"Timeout for request: {newRequest} with id {newId}", request));
+                        this.RejectOwned(newId, taskInfo, new TimeoutException(TimeoutMessage(request, newId), request));
                     }
                     catch (Exception ex)
                     {
@@ -483,7 +495,7 @@ namespace Xrpl.Client
                 {
                     try
                     {
-                        this.RejectOwned(newId, taskInfo, new TimeoutException($"Timeout for request: {newRequest} with id {newId}", request));
+                        this.RejectOwned(newId, taskInfo, new TimeoutException(TimeoutMessage(request, newId), request));
                     }
                     catch (Exception ex)
                     {

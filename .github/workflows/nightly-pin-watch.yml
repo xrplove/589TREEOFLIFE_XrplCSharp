@@ -56,7 +56,10 @@ env:
   MAX_PIN_AGE_DAYS: '21'
   ISSUE_TITLE: 'Nightly pin watch: xrpld develop build'
   ISSUE_LABEL: nightly-pin-watch
-  DOTNET_VERSION: '10.0.x'
+  # SDK 11 builds the net11.0 target; SDK 10 brings the runtime the net10.0 tests run on.
+  DOTNET_VERSION: |
+    10.0.x
+    11.0.x
   HAS_APP: ${{ vars.RELEASE_WATCH_APP_ID != '' && secrets.RELEASE_WATCH_APP_PRIVATE_KEY != '' }}
   CAN_PR: ${{ (vars.RELEASE_WATCH_APP_ID != '' && secrets.RELEASE_WATCH_APP_PRIVATE_KEY != '') || secrets.RELEASE_WATCH_PAT != '' }}
 

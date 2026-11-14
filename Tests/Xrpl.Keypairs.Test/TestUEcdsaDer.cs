@@ -12,7 +12,7 @@ namespace Xrpl.Keypairs.Tests
         [TestMethod]
         public void DecodeFromDer_RoundTrip_Works()
         {
-            EcdsaSignature signature = new EcdsaSignature(new Org.BouncyCastle.Math.BigInteger("12345"), new Org.BouncyCastle.Math.BigInteger("67890"));
+            EcdsaSignature signature = new EcdsaSignature(new System.Numerics.BigInteger(12345), new System.Numerics.BigInteger(67890));
             EcdsaSignature decoded = EcdsaSignature.DecodeFromDer(signature.EncodeToDer());
             Assert.IsNotNull(decoded);
             Assert.AreEqual(signature.R, decoded.R);
@@ -44,7 +44,7 @@ namespace Xrpl.Keypairs.Tests
         [TestMethod]
         public void DecodeFromDer_TrailingBytes_ReturnsNull()
         {
-            byte[] der = new EcdsaSignature(new Org.BouncyCastle.Math.BigInteger("12345"), new Org.BouncyCastle.Math.BigInteger("67890")).EncodeToDer();
+            byte[] der = new EcdsaSignature(new System.Numerics.BigInteger(12345), new System.Numerics.BigInteger(67890)).EncodeToDer();
             byte[] withTrailer = new byte[der.Length + 1];
             der.CopyTo(withTrailer, 0);
 

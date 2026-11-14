@@ -102,6 +102,31 @@ namespace Xrpl.Tests.Wallet.Tests
 
         [TestMethod]
         [DynamicData(nameof(Algorithms))]
+        public void KeyArray_IsPinned_AndNotMovedByCompaction(string algorithm)
+        {
+            XrplWallet wallet = XrplWallet.FromEntropy(Entropy, algorithm: algorithm);
+            using XrplSigningKey fromBytes = new XrplSigningKey(wallet.PrivateKey.FromHex());
+            using XrplSigningKey fromEntropy = XrplSigningKey.FromEntropy(Entropy, algorithm);
+
+            foreach (XrplSigningKey key in new[] { fromBytes, fromEntropy })
+            {
+                // Objects on the pinned object heap report the oldest generation from the start;
+                // an ordinary new array is in generation 0.
+                Assert.AreEqual(GC.MaxGeneration, GC.GetGeneration(key.KeyArray));
+
+                IntPtr before = System.Runtime.InteropServices.Marshal.UnsafeAddrOfPinnedArrayElement(key.KeyArray, 0);
+                for (int i = 0; i < 3; i++)
+                {
+                    _ = new byte[1024 * 64];
+                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+                }
+                Assert.AreEqual(before, System.Runtime.InteropServices.Marshal.UnsafeAddrOfPinnedArrayElement(key.KeyArray, 0));
+                CollectionAssert.AreEqual(wallet.PrivateKey.FromHex(), key.KeyBuffer.ToArray());
+            }
+        }
+
+        [TestMethod]
+        [DynamicData(nameof(Algorithms))]
         public void Sign_Single_IsByteIdentical(string algorithm)
         {
             XrplWallet wallet = XrplWallet.FromEntropy(Entropy, algorithm: algorithm);

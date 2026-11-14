@@ -298,7 +298,7 @@ public class RFC1751
 
         for (int i = 0; i < words.Length; i += 6)
         {
-            var (subKey, word) = GetSubKey(words, i);
+            var (subKey, _) = GetSubKey(words, i);
 
             // Check parity
             string skbin = KeyToBinary(subKey);
@@ -311,7 +311,8 @@ public class RFC1751
             int cs1 = parity & 3;
             if (cs0 != cs1)
             {
-                throw new Exception($"Parity error at {word}");
+                // The words themselves stay out of the message: they are the key.
+                throw new Exception($"Parity error in words {i + 1}-{Math.Min(i + 6, words.Length)}.");
             }
 
             key.AddRange(subKey.Take(8));
@@ -350,12 +351,13 @@ public class RFC1751
         int bits = 0;
         byte[] ch = new byte[9];
         string word = string.Empty;
-        foreach (string w in sublist)
+        for (int position = 0; position < sublist.Length; position++)
         {
+            string w = sublist[position];
             int idx = Array.IndexOf(rfc1751WordList, w.ToUpper());
             if (idx == -1)
             {
-                throw new ArgumentException($"Expected an RFC1751 word, but received '{w}'.");
+                throw new ArgumentException($"Word {index + position + 1} is not an RFC1751 word.");
             }
             int shift = (8 - ((bits + 11) % 8)) % 8;
             int y = idx << shift;
