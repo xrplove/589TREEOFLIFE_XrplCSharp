@@ -19,7 +19,7 @@ RUN install -m 0755 -d /etc/apt/keyrings \
 # rippled.batchv11.cfg can be generated from the very commit this binary was built from: the
 # binary rejects feature names it does not know. bump-nightly-pin.sh keeps the two together by
 # reading the commit out of the version string.
-ARG XRPLD_VERSION=0.0.0~dev-1329.20261023git1f46f75
+ARG XRPLD_VERSION=0.0.0~dev-1383.20261113git3c72fb5
 RUN echo "deb [signed-by=/etc/apt/keyrings/xrplf.asc] https://packages.xrplf.org/repository/deb-develop any main" > /etc/apt/sources.list.d/xrplf.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends --allow-downgrades "xrpld=${XRPLD_VERSION}" \
